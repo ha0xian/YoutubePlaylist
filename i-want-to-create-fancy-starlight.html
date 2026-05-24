@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Playlist Viewer — Plan</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d38;
+    --text: #e1e4eb;
+    --text-muted: #8b8fa3;
+    --accent: #6c8cff;
+    --accent-dim: #4a5fa8;
+    --green: #4ade80;
+    --orange: #f59e0b;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; color: #fff; }
+  h2 {
+    font-size: 1.3rem;
+    margin: 32px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+    color: var(--accent);
+  }
+  h3 { font-size: 1.05rem; margin: 20px 0 8px; color: #c4c9d4; }
+  p { margin-bottom: 10px; color: var(--text-muted); }
+  ul { padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; color: var(--text-muted); }
+  code {
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    border: none;
+    color: var(--text);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .badge-get { background: #1e3a2f; color: var(--green); }
+  .badge-post { background: #3a3416; color: var(--orange); }
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--text-muted);
+    white-space: pre;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+  }
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--accent); font-weight: 600; }
+  td { color: var(--text-muted); }
+  .subsection { margin-left: 8px; margin-bottom: 16px; }
+  .tree {
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .step {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .meta {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+<h1>YouTube Playlist Viewer</h1>
+<p class="meta">Plan document &mdash; single-user web app to browse YouTube playlists grouped by playlist</p>
+
+<!-- ───── Context ───── -->
+<h2>Context</h2>
+<p>
+  Build a <strong>single-user web app</strong> that displays the user's YouTube playlists
+  and their videos in a clean, organized layout. Videos are grouped by playlist. The backend
+  syncs playlist/video metadata from YouTube Data API v3 via Google OAuth, stores it locally,
+  and serves it through a REST API. The frontend fetches and displays the data with a
+  sidebar + video grid layout.
+</p>
+<ul>
+  <li><strong>Backend:</strong> Python Django REST Framework</li>
+  <li><strong>Frontend:</strong> React (Vite)</li>
+  <li><strong>Location:</strong> <code>C:\Users\NorthWhite\Desktop\Project\Youtube playlist</code></li>
+</ul>
+
+<!-- ───── Architecture ───── -->
+<h2>Architecture Overview</h2>
+
+<div class="diagram">
+YouTube Data API v3
+        │
+        ▼
+┌──────────────────┐     ┌──────────────────┐
+│  Django Backend  │────▶│   React Frontend │
+│  (port 8000)     │REST │   (port 5173)    │
+│                  │◀────│                  │
+│  SQLite DB       │     │  Sidebar + Grid  │
+│  OAuth tokens    │     │  Embedded Player │
+└──────────────────┘     └──────────────────┘
+</div>
+
+<!-- ───── Backend ───── -->
+<h2>Backend Plan</h2>
+
+<h3>Models &mdash; <code>backend/playlists/models.py</code></h3>
+
+<table>
+  <tr><th>Model</th><th>Fields</th></tr>
+  <tr>
+    <td><code>YouTubePlaylist</code></td>
+    <td><code>youtube_id</code>, <code>title</code>, <code>description</code>, <code>thumbnail_url</code>, <code>item_count</code>, <code>synced_at</code></td>
+  </tr>
+  <tr>
+    <td><code>YouTubeVideo</code></td>
+    <td><code>youtube_id</code>, <code>playlist</code> (FK), <code>title</code>, <code>description</code>, <code>thumbnail_url</code>, <code>position</code>, <code>duration</code></td>
+  </tr>
+</table>
+
+<h3>YouTube API Client &mdash; <code>backend/playlists/youtube.py</code></h3>
+<ul>
+  <li>Uses <code>google-api-python-client</code> with OAuth 2.0 credentials</li>
+  <li><code>fetch_playlists()</code> &mdash; calls <code>playlists().list(mine=true)</code></li>
+  <li><code>fetch_playlist_videos(playlist_id)</code> &mdash; calls <code>playlistItems().list()</code></li>
+  <li><code>sync_all()</code> &mdash; fetches all playlists &amp; videos, upserts into DB</li>
+  <li>OAuth flow: single-user &mdash; redirect to Google, store tokens on disk</li>
+</ul>
+
+<h3>API Endpoints &mdash; <code>backend/playlists/views.py</code></h3>
+
+<table>
+  <tr><th>Method</th><th>Path</th><th>Description</th></tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/api/playlists/</code></td>
+    <td>List all synced playlists</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/api/playlists/&lt;id&gt;/</code></td>
+    <td>Get playlist details with its videos</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-post">POST</span></td>
+    <td><code>/api/sync/</code></td>
+    <td>Trigger a full sync from YouTube</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/api/auth/status/</code></td>
+    <td>Check if OAuth is configured</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/api/auth/url/</code></td>
+    <td>Get Google OAuth authorization URL</td>
+  </tr>
+  <tr>
+    <td><span class="badge badge-get">GET</span></td>
+    <td><code>/api/auth/callback/</code></td>
+    <td>OAuth callback to store credentials</td>
+  </tr>
+</table>
+
+<h3>Settings Highlights</h3>
+<ul>
+  <li>SQLite database (sufficient for single-user metadata)</li>
+  <li>CORS enabled for Vite dev server origin</li>
+  <li>Dependencies: <code>django</code>, <code>djangorestframework</code>, <code>django-cors-headers</code>, <code>google-api-python-client</code>, <code>google-auth-oauthlib</code></li>
+</ul>
+
+<!-- ───── Frontend ───── -->
+<h2>Frontend Plan</h2>
+
+<h3>Tech Stack</h3>
+<ul>
+  <li>React 18 with Vite</li>
+  <li>React Router &mdash; <code>/</code> (home), <code>/playlist/:id</code> (single playlist)</li>
+  <li>Plain CSS modules for styling</li>
+</ul>
+
+<h3>Component Tree</h3>
+
+<pre class="tree">App
+├── Header          — app title, sync status, sync button
+├── Layout
+│   ├── Sidebar
+│   │   └── PlaylistItem[]   — thumbnail, title, video count
+│   └── MainContent
+│       ├── VideoGrid &gt; VideoCard[]   — thumbnail, title, duration
+│       └── VideoPlayer               — embedded YouTube iframe (modal)</pre>
+
+<h3>Pages &amp; Data Flow</h3>
+<ul>
+  <li><strong>Home</strong> (<code>/</code>) &mdash; Sidebar with playlists + prompt to select one</li>
+  <li><strong>Playlist View</strong> (<code>/playlist/:id</code>) &mdash; Highlighted playlist + video grid</li>
+  <li><code>services/api.js</code> &mdash; fetch wrapper calling Django API</li>
+  <li>App load → fetch playlists → sidebar. Playlist click → fetch videos → grid.</li>
+  <li>Sync button → <code>POST /api/sync/</code> → refresh data.</li>
+</ul>
+
+<h3>Key Features</h3>
+<ul>
+  <li>Embedded YouTube player (iframe) opens in a modal on video click</li>
+  <li>Responsive video grid: 3&ndash;4 columns desktop, 1&ndash;2 mobile</li>
+  <li>Playlist thumbnails in sidebar</li>
+  <li>"Last synced" indicator in header</li>
+</ul>
+
+<!-- ───── Steps ───── -->
+<h2>Implementation Steps</h2>
+
+<div class="step"><strong>1. Backend scaffold</strong> &mdash; Django project + app, dependencies, settings</div>
+<div class="step"><strong>2. Models &amp; admin</strong> &mdash; YouTubePlaylist &amp; YouTubeVideo, migrations, admin registration</div>
+<div class="step"><strong>3. YouTube API integration</strong> &mdash; OAuth flow, fetch/sync functions</div>
+<div class="step"><strong>4. REST API</strong> &mdash; Serializers, views, URL routing, sync endpoint</div>
+<div class="step"><strong>5. Frontend scaffold</strong> &mdash; Vite + React, dependencies, folder structure, routing</div>
+<div class="step"><strong>6. Components &amp; styling</strong> &mdash; Header, Sidebar, PlaylistItem, VideoGrid, VideoCard, VideoPlayer</div>
+<div class="step"><strong>7. Wire up &amp; polish</strong> &mdash; Connect to backend, loading/error/empty states</div>
+
+<!-- ───── Verification ───── -->
+<h2>Verification</h2>
+<ol>
+  <li>Run backend: <code>py manage.py runserver</code> → API at <code>http://localhost:8000/api/</code></li>
+  <li>Run frontend: <code>npm run dev</code> → app at <code>http://localhost:5173</code></li>
+  <li>Complete OAuth flow at <code>/api/auth/url/</code></li>
+  <li>Trigger sync → playlists + videos appear in DB</li>
+  <li>Open frontend → playlists in sidebar, videos in grid</li>
+  <li>Click video → embedded player opens</li>
+  <li>Switch playlists → video grid updates</li>
+</ol>
+
+<!-- ───── Files ───── -->
+<h2>Files to Create</h2>
+
+<pre class="tree">Youtube playlist/
+├── backend/
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   ├── wsgi.py
+│   │   └── asgi.py
+│   ├── playlists/
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   │   ├── serializers.py
+│   │   ├── views.py
+│   │   ├── urls.py
+│   │   ├── youtube.py
+│   │   ├── admin.py
+│   │   └── migrations/
+│   ├── manage.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── Header.jsx / Header.css
+│   │   │   ├── Sidebar.jsx / Sidebar.css
+│   │   │   ├── PlaylistItem.jsx / PlaylistItem.css
+│   │   │   ├── VideoGrid.jsx / VideoGrid.css
+│   │   │   ├── VideoCard.jsx / VideoCard.css
+│   │   │   ├── VideoPlayer.jsx / VideoPlayer.css
+│   │   ├── services/
+│   │   │   └── api.js
+│   │   ├── App.jsx / App.css
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.js</pre>
+
+</body>
+</html>
