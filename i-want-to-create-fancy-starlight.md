@@ -71,41 +71,43 @@ YouTube Data API v3
 
 ### Tech Stack
 
-- React 18 with Vite
-- React Router for navigation (`/` → all playlists, `/playlist/:id` → single playlist)
-- Plain CSS modules for styling (keep it simple, single-user app)
+- React 19 with Vite 8
+- TypeScript (strict mode, `verbatimModuleSyntax`, `erasableSyntaxOnly`)
+- React Router v7 for navigation (`/` → playlist browser, `/playlist/:id` → video list, `/watch/:videoId` → player + notes)
+- Tailwind CSS v4 + inline styles for dynamic values (dark theme)
 
 ### Component Tree
 
 ```
-App
-├── Header (app title, sync status, sync button)
-├── Layout
-│   ├── Sidebar
-│   │   └── PlaylistList > PlaylistItem[] (title, thumbnail, video count)
-│   └── MainContent
-│       ├── VideoGrid > VideoCard[] (thumbnail, title, duration)
-│       └── VideoPlayer (embedded YouTube iframe, shown in modal/overlay)
+App (Routes)
+├── PlaylistBrowser     "/" — grid of playlist cards
+├── PlaylistDetail      "/playlist/:id" — header + scrollable video list
+└── WatchPage           "/watch/:videoId" — 70/30 split layout
+    ├── YouTubePlayer   (video ID input + embedded iframe)
+    └── MarkdownNotes   (textarea + markdown preview)
 ```
 
 ### Pages
 
-1. **Home** (`/`) — Sidebar with all playlists + main area showing all videos (or prompt to select a playlist)
-2. **Playlist View** (`/playlist/:id`) — Sidebar with highlighted playlist + main area with that playlist's videos
+1. **Playlist Browser** (`/`) — Sticky header + responsive grid of PlaylistCard components (1–4 columns depending on viewport)
+2. **Playlist Detail** (`/playlist/:id`) — Sticky header with back button + playlist info, scrollable list of VideoListItem components
+3. **Watch** (`/watch/:videoId`) — 70% YouTube iframe player + 30% markdown notes panel (persisted to localStorage)
+4. **Catch-all** (`*`) — Redirects to `/`
 
-### Data Flow
+### Data
 
-- `services/api.js` — wrapper around `fetch` to call Django API
-- On app load: fetch playlists, display in sidebar
-- On playlist click: fetch that playlist's videos, display in grid
-- On "Sync" button: call `POST /api/sync/`, then refresh data
+- `types/playlist.ts` — `Playlist`, `Video`, `Thumbnail` TypeScript interfaces matching YouTube Data API v3 shapes
+- `data/mockData.ts` — 6 playlists with 4–8 videos each, using `img.youtube.com/vi/{ID}/mqdefault.jpg` for thumbnails
+- Ready to swap with real API calls: `services/api.js` — fetch wrapper calling Django REST endpoints (not yet created)
 
 ### Key Features
 
-- Embedded YouTube player (iframe) opens in a modal when clicking a video card
-- Responsive video grid (3-4 columns on desktop, 1-2 on mobile)
-- Playlist thumbnails in sidebar
-- "Last synced" indicator in header
+- Embedded YouTube player (iframe) with video ID input; loads from URL param or localStorage
+- Markdown notes editor per video with live preview (uses `marked` library)
+- Video duration badge overlay on thumbnails
+- Back-button navigation preserves browser history
+- Responsive playlist grid and video list
+- Dark theme: bg `#0f0f0f`, surfaces `#1a1a1a`/`#2a2a2a`, text `#e0e0e0`, accent `#cc0000`
 
 ---
 
@@ -132,20 +134,21 @@ App
 - Wire up sync endpoint
 
 ### Step 5: Frontend Scaffold
-- Create Vite + React project
-- Install `react-router-dom`
-- Set up folder structure
+- Create Vite + React + TypeScript project
+- Install `react-router-dom`, `tailwindcss`, `@tailwindcss/vite`, `marked`
+- Configure Tailwind CSS v4 Vite plugin
+- Set up folder structure (`components/`, `pages/`, `data/`, `types/`)
 
 ### Step 6: Frontend Components
-- Build `api.js` service layer
-- Build `Sidebar` + `PlaylistList`
-- Build `VideoGrid` + `VideoCard`
-- Build `VideoPlayer` modal
-- Build `Header` with sync button
-- Wire up routing and data fetching
+- Create `types/playlist.ts` with data interfaces
+- Create `data/mockData.ts` with 6 playlists + 34 videos (YouTube-shaped mock data)
+- Build `PlaylistCard` (grid card) and `VideoListItem` (row with duration badge) components
+- Build `PlaylistBrowser` (grid page), `PlaylistDetail` (video list page), `WatchPage` (player + notes)
+- Build `YouTubePlayer` (iframe embed with URL input) and `MarkdownNotes` (textarea + preview)
+- Wire up routing in `App.tsx` with `BrowserRouter` in `main.tsx`
 
 ### Step 7: Polish & Connect
-- Wire frontend to backend
+- Wire frontend to backend `services/api.js` (not yet created)
 - Add loading/empty/error states
 - Test full flow end-to-end
 
@@ -188,25 +191,25 @@ Youtube playlist/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx
-│   │   │   ├── Header.css
-│   │   │   ├── Sidebar.jsx
-│   │   │   ├── Sidebar.css
-│   │   │   ├── PlaylistItem.jsx
-│   │   │   ├── PlaylistItem.css
-│   │   │   ├── VideoGrid.jsx
-│   │   │   ├── VideoGrid.css
-│   │   │   ├── VideoCard.jsx
-│   │   │   ├── VideoCard.css
-│   │   │   ├── VideoPlayer.jsx
-│   │   │   └── VideoPlayer.css
-│   │   ├── services/
-│   │   │   └── api.js
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   ├── main.jsx
+│   │   │   ├── YouTubePlayer.tsx
+│   │   │   ├── MarkdownNotes.tsx
+│   │   │   ├── PlaylistCard.tsx
+│   │   │   └── VideoListItem.tsx
+│   │   ├── pages/
+│   │   │   ├── PlaylistBrowser.tsx
+│   │   │   ├── PlaylistDetail.tsx
+│   │   │   └── WatchPage.tsx
+│   │   ├── data/
+│   │   │   └── mockData.ts
+│   │   ├── types/
+│   │   │   └── playlist.ts
+│   │   ├── App.tsx
+│   │   ├── main.tsx
 │   │   └── index.css
 │   ├── index.html
 │   ├── package.json
-│   └── vite.config.js
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts
 ```

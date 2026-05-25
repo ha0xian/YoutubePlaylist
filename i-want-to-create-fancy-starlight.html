@@ -230,37 +230,40 @@ YouTube Data API v3
 
 <h3>Tech Stack</h3>
 <ul>
-  <li>React 18 with Vite</li>
-  <li>React Router &mdash; <code>/</code> (home), <code>/playlist/:id</code> (single playlist)</li>
-  <li>Plain CSS modules for styling</li>
+  <li>React 19 with Vite 8</li>
+  <li>TypeScript (strict mode)</li>
+  <li>React Router v7 &mdash; <code>/</code> (playlist browser), <code>/playlist/:id</code> (video list), <code>/watch/:videoId</code> (player + notes)</li>
+  <li>Tailwind CSS v4 + inline styles for dynamic values (dark theme)</li>
 </ul>
 
 <h3>Component Tree</h3>
 
-<pre class="tree">App
-├── Header          — app title, sync status, sync button
-├── Layout
-│   ├── Sidebar
-│   │   └── PlaylistItem[]   — thumbnail, title, video count
-│   └── MainContent
-│       ├── VideoGrid &gt; VideoCard[]   — thumbnail, title, duration
-│       └── VideoPlayer               — embedded YouTube iframe (modal)</pre>
+<pre class="tree">App (Routes)
+├── PlaylistBrowser     "/" — grid of playlist cards
+├── PlaylistDetail      "/playlist/:id" — header + scrollable video list
+└── WatchPage           "/watch/:videoId" — 70/30 split layout
+    ├── YouTubePlayer   — video ID input + embedded iframe
+    └── MarkdownNotes   — textarea + markdown preview</pre>
 
 <h3>Pages &amp; Data Flow</h3>
 <ul>
-  <li><strong>Home</strong> (<code>/</code>) &mdash; Sidebar with playlists + prompt to select one</li>
-  <li><strong>Playlist View</strong> (<code>/playlist/:id</code>) &mdash; Highlighted playlist + video grid</li>
-  <li><code>services/api.js</code> &mdash; fetch wrapper calling Django API</li>
-  <li>App load → fetch playlists → sidebar. Playlist click → fetch videos → grid.</li>
-  <li>Sync button → <code>POST /api/sync/</code> → refresh data.</li>
+  <li><strong>Playlist Browser</strong> (<code>/</code>) &mdash; Sticky header + responsive grid of PlaylistCard components</li>
+  <li><strong>Playlist Detail</strong> (<code>/playlist/:id</code>) &mdash; Header with back button + scrollable video list</li>
+  <li><strong>Watch</strong> (<code>/watch/:videoId</code>) &mdash; 70% YouTube iframe + 30% markdown notes panel</li>
+  <li><strong>Catch-all</strong> (<code>*</code>) &mdash; Redirects to <code>/</code></li>
+  <li><code>data/mockData.ts</code> &mdash; 6 playlists with 4–8 videos each (YouTube-shaped mock data)</li>
+  <li>Click playlist → navigate to video list. Click video → player + notes view.</li>
+  <li>Video ID persisted to localStorage; notes auto-saved per video.</li>
 </ul>
 
 <h3>Key Features</h3>
 <ul>
-  <li>Embedded YouTube player (iframe) opens in a modal on video click</li>
-  <li>Responsive video grid: 3&ndash;4 columns desktop, 1&ndash;2 mobile</li>
-  <li>Playlist thumbnails in sidebar</li>
-  <li>"Last synced" indicator in header</li>
+  <li>Embedded YouTube player (iframe) with URL input — loads from route param or localStorage</li>
+  <li>Markdown notes editor per video with live preview (uses <code>marked</code> library)</li>
+  <li>Video duration badge overlay on thumbnails</li>
+  <li>Responsive playlist grid (1–4 columns) and video list</li>
+  <li>Back-button navigation preserves browser history</li>
+  <li>Dark theme throughout</li>
 </ul>
 
 <!-- ───── Steps ───── -->
@@ -270,9 +273,9 @@ YouTube Data API v3
 <div class="step"><strong>2. Models &amp; admin</strong> &mdash; YouTubePlaylist &amp; YouTubeVideo, migrations, admin registration</div>
 <div class="step"><strong>3. YouTube API integration</strong> &mdash; OAuth flow, fetch/sync functions</div>
 <div class="step"><strong>4. REST API</strong> &mdash; Serializers, views, URL routing, sync endpoint</div>
-<div class="step"><strong>5. Frontend scaffold</strong> &mdash; Vite + React, dependencies, folder structure, routing</div>
-<div class="step"><strong>6. Components &amp; styling</strong> &mdash; Header, Sidebar, PlaylistItem, VideoGrid, VideoCard, VideoPlayer</div>
-<div class="step"><strong>7. Wire up &amp; polish</strong> &mdash; Connect to backend, loading/error/empty states</div>
+<div class="step"><strong>5. Frontend scaffold</strong> &mdash; Vite + React + TypeScript, install react-router-dom, tailwindcss, marked</div>
+<div class="step"><strong>6. Components &amp; styling</strong> &mdash; PlaylistCard, VideoListItem, PlaylistBrowser, PlaylistDetail, WatchPage, YouTubePlayer, MarkdownNotes</div>
+<div class="step"><strong>7. Wire up &amp; polish</strong> &mdash; Connect to backend (services/api.js TBD), loading/error/empty states</div>
 
 <!-- ───── Verification ───── -->
 <h2>Verification</h2>
@@ -281,9 +284,11 @@ YouTube Data API v3
   <li>Run frontend: <code>npm run dev</code> → app at <code>http://localhost:5173</code></li>
   <li>Complete OAuth flow at <code>/api/auth/url/</code></li>
   <li>Trigger sync → playlists + videos appear in DB</li>
-  <li>Open frontend → playlists in sidebar, videos in grid</li>
-  <li>Click video → embedded player opens</li>
-  <li>Switch playlists → video grid updates</li>
+  <li>Open frontend → playlist grid at <code>/</code></li>
+  <li>Click a playlist → video list at <code>/playlist/:id</code></li>
+  <li>Click a video → player + notes at <code>/watch/:videoId</code></li>
+  <li>Direct URL navigation works for all routes</li>
+  <li>Unknown routes redirect to <code>/</code></li>
 </ol>
 
 <!-- ───── Files ───── -->
@@ -311,20 +316,27 @@ YouTube Data API v3
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx / Header.css
-│   │   │   ├── Sidebar.jsx / Sidebar.css
-│   │   │   ├── PlaylistItem.jsx / PlaylistItem.css
-│   │   │   ├── VideoGrid.jsx / VideoGrid.css
-│   │   │   ├── VideoCard.jsx / VideoCard.css
-│   │   │   ├── VideoPlayer.jsx / VideoPlayer.css
-│   │   ├── services/
-│   │   │   └── api.js
-│   │   ├── App.jsx / App.css
-│   │   ├── main.jsx
+│   │   │   ├── YouTubePlayer.tsx
+│   │   │   ├── MarkdownNotes.tsx
+│   │   │   ├── PlaylistCard.tsx
+│   │   │   └── VideoListItem.tsx
+│   │   ├── pages/
+│   │   │   ├── PlaylistBrowser.tsx
+│   │   │   ├── PlaylistDetail.tsx
+│   │   │   └── WatchPage.tsx
+│   │   ├── data/
+│   │   │   └── mockData.ts
+│   │   ├── types/
+│   │   │   └── playlist.ts
+│   │   ├── App.tsx
+│   │   ├── main.tsx
 │   │   └── index.css
 │   ├── index.html
 │   ├── package.json
-│   └── vite.config.js</pre>
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── tsconfig.node.json
+│   └── vite.config.ts</pre>
 
 </body>
 </html>

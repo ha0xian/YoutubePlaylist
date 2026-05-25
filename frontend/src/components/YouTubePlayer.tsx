@@ -26,8 +26,14 @@ function extractVideoId(url: string): string | null {
   return null
 }
 
-export default function YouTubePlayer() {
-  const [videoId, setVideoId] = useState(() => localStorage.getItem(STORAGE_KEY) || '')
+interface YouTubePlayerProps {
+  initialVideoId?: string
+}
+
+export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
+  const [videoId, setVideoId] = useState(
+    () => initialVideoId || localStorage.getItem(STORAGE_KEY) || ''
+  )
   const [inputValue, setInputValue] = useState(videoId)
 
   const handleLoad = useCallback(() => {
@@ -39,72 +45,35 @@ export default function YouTubePlayer() {
   }, [inputValue])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        padding: '12px 16px',
-        background: '#1a1a1a',
-        borderBottom: '1px solid #333',
-        flexShrink: 0,
-      }}>
+    <div className="flex flex-col h-full">
+      <div className="flex gap-2 px-4 py-3 bg-[#1a1a1a] border-b border-[#333] shrink-0">
         <input
           type="text"
           placeholder="Paste YouTube URL or video ID..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
-          style={{
-            flex: 1,
-            padding: '8px 12px',
-            border: '1px solid #444',
-            borderRadius: 6,
-            background: '#2a2a2a',
-            color: '#e0e0e0',
-            fontSize: 14,
-            outline: 'none',
-          }}
+          className="flex-1 px-3 py-2 border border-[#444] rounded-md bg-[#2a2a2a] text-[#e0e0e0] text-sm outline-none"
         />
         <button
           onClick={handleLoad}
-          style={{
-            padding: '8px 20px',
-            border: 'none',
-            borderRadius: 6,
-            background: '#cc0000',
-            color: '#fff',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className="px-5 py-2 border-none rounded-md bg-[#cc0000] text-white text-sm font-semibold cursor-pointer whitespace-nowrap"
         >
           Load
         </button>
       </div>
 
-      <div style={{ flex: 1, background: '#000' }}>
+      <div className="flex-1 bg-black">
         {videoId ? (
           <iframe
             src={`https://www.youtube.com/embed/${videoId}`}
             title="YouTube video player"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-            }}
+            className="w-full h-full border-none"
           />
         ) : (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: '#666',
-            fontSize: 16,
-          }}>
+          <div className="flex items-center justify-center h-full text-[#666] text-base">
             Enter a YouTube URL above to start watching
           </div>
         )}
