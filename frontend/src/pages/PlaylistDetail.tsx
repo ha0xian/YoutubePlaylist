@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { playlists, getVideosForPlaylist } from '../data/mockData'
 import VideoListItem from '../components/VideoListItem'
+import UserMenu from '../components/UserMenu'
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>()
@@ -29,22 +30,25 @@ export default function PlaylistDetail() {
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
       <header className="sticky top-0 z-10 bg-[#0f0f0f]/95 backdrop-blur-sm border-b border-[#333]">
-        <div className="flex items-center gap-4 px-6 py-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none shrink-0"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Back
-          </button>
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-white truncate">{playlist.title}</h1>
-            <p className="text-xs text-[#999] mt-0.5">
-              {playlist.channelTitle} &middot; {playlist.videoCount} videos
-            </p>
+        <div className="flex items-center justify-between gap-4 px-6 py-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none shrink-0"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-white truncate">{playlist.title}</h1>
+              <p className="text-xs text-[#999] mt-0.5">
+                {playlist.channelTitle} &middot; {playlist.videoCount} videos
+              </p>
+            </div>
           </div>
+          <UserMenu />
         </div>
         {playlist.description && (
           <p className="text-sm text-[#999] px-6 pb-4">{playlist.description}</p>

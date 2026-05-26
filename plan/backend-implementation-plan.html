@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend Implementation Plan — YouTube Playlist Viewer</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #2a2a2a;
+    --text: #e0e0e0;
+    --muted: #a0a0a0;
+    --accent: #cc0000;
+    --green: #4caf50;
+    --blue: #64b5f6;
+    --orange: #ffb74d;
+    --purple: #ce93d8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  h1 { font-size: 2rem; margin-bottom: 0.25rem; color: #fff; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--surface2); }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #fff; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; }
+  p, li { color: var(--text); }
+  .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 2rem; }
+  .phase {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-left: 4px solid var(--accent);
+  }
+  .phase.p1 { border-left-color: var(--green); }
+  .phase.p2 { border-left-color: var(--blue); }
+  .phase.p3 { border-left-color: var(--orange); }
+  .phase.p4 { border-left-color: var(--purple); }
+  .phase.p5 { border-left-color: var(--muted); }
+  .phase h3 { margin-top: 0; }
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+  .badge-green { background: #2e7d32; color: #fff; }
+  .badge-blue { background: #1565c0; color: #fff; }
+  .badge-orange { background: #e65100; color: #fff; }
+  .badge-purple { background: #6a1b9a; color: #fff; }
+  .badge-muted { background: #424242; color: #ccc; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0.75rem 0 1.25rem; font-size: 0.9rem; }
+  th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--surface2); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  tr:last-child td { border-bottom: none; }
+  code {
+    background: var(--surface2);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #fff;
+  }
+  pre {
+    background: var(--surface2);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 0.75rem 0 1.25rem;
+  }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.3rem 0; }
+  a { color: var(--blue); }
+  hr { border: none; border-top: 1px solid var(--surface2); margin: 2rem 0; }
+  .flow {
+    text-align: center;
+    font-size: 1.1rem;
+    padding: 1rem;
+    background: var(--surface);
+    border-radius: 8px;
+    letter-spacing: 0.05em;
+  }
+  .section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+</style>
+</head>
+<body>
+
+<h1>Backend Implementation Plan</h1>
+<p class="subtitle">YouTube Playlist Viewer &mdash; 5 phases, each building on the last</p>
+
+<div style="background:var(--surface);padding:1rem 1.25rem;border-radius:8px;margin-bottom:2rem;">
+  <p><strong>Context:</strong> The frontend is built (React + TypeScript, 3 pages, mock data) but the backend is a Django + DRF scaffold with zero models and one hello-world endpoint. The app is now <strong>multi-user</strong> (per-user accounts, per-user YouTube connections, per-user notes) instead of single-user.</p>
+</div>
+
+<!-- ====== Phase 1 ====== -->
+<div class="phase p1">
+<h3><span class="badge badge-green">Phase 1</span> User Authentication</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Users can register, login, logout. Protected endpoints reject unauthenticated requests.</p>
+
+<div class="section-label">Django concepts to learn</div>
+<p><code>django.contrib.auth</code>, DRF <code>TokenAuthentication</code>, <code>permissions.IsAuthenticated</code>, <code>APIView</code></p>
+
+<h4>Endpoints</h4>
+<table>
+<tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td>POST</td><td><code>/api/auth/register/</code></td><td>Create account (username, email, password, password2) &rarr; returns token</td></tr>
+<tr><td>POST</td><td><code>/api/auth/login/</code></td><td>Login (username, password) &rarr; returns token (use DRF's <code>obtain_auth_token</code>)</td></tr>
+<tr><td>POST</td><td><code>/api/auth/logout/</code></td><td>Deletes the request's auth token</td></tr>
+<tr><td>GET</td><td><code>/api/auth/me/</code></td><td>Returns current user info</td></tr>
+</table>
+
+<h4>Steps</h4>
+<ol>
+  <li>Add <code>rest_framework.authtoken</code> to <code>INSTALLED_APPS</code> in settings</li>
+  <li>Configure <code>DEFAULT_AUTHENTICATION_CLASSES</code> and <code>DEFAULT_PERMISSION_CLASSES</code> in <code>REST_FRAMEWORK</code> dict</li>
+  <li>Create <code>backend/api/serializers.py</code> with <code>RegisterSerializer</code></li>
+  <li>Add register, login, logout, me views to <code>views.py</code></li>
+  <li>Wire URLs in <code>urls.py</code></li>
+  <li>Run <code>python manage.py migrate</code></li>
+</ol>
+
+<p><strong>Files:</strong> <code>settings.py</code>, <code>serializers.py</code> (new), <code>views.py</code>, <code>urls.py</code><br>
+<strong>New deps:</strong> None (DRF includes authtoken)</p>
+</div>
+
+<!-- ====== Phase 2 ====== -->
+<div class="phase p2">
+<h3><span class="badge badge-blue">Phase 2</span> YouTube OAuth &amp; API Client</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Users can connect their YouTube account. Backend can fetch playlists/videos from YouTube Data API v3.</p>
+
+<div class="section-label">Django concepts to learn</div>
+<p><code>OneToOneField</code>, <code>TextField</code>, custom model methods, <code>os.environ</code> for config, OAuth 2.0 flow</p>
+
+<h4>YouTubeCredential Model</h4>
+<table>
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>user</code></td><td>OneToOneField &rarr; User</td><td>One credential set per user</td></tr>
+<tr><td><code>token_json</code></td><td>TextField</td><td>Stores <code>Credentials.to_json()</code> from Google's library</td></tr>
+</table>
+<p>Add helpers: <code>get_credentials()</code> &rarr; <code>Credentials</code> object, <code>set_credentials(creds)</code> stores JSON.</p>
+
+<h4>New Module: <code>backend/api/youtube.py</code></h4>
+<p>Functions: <code>build_flow()</code>, <code>get_auth_url(state)</code>, <code>exchange_code(code)</code>, <code>get_authenticated_service(credentials)</code>, <code>fetch_playlists(service)</code>, <code>fetch_playlist_items(service, playlist_id)</code></p>
+
+<h4>Endpoints</h4>
+<table>
+<tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td>GET</td><td><code>/api/youtube/auth-url/</code></td><td>Returns <code>{"url": "..."}</code> — frontend redirects user here</td></tr>
+<tr><td>GET</td><td><code>/api/youtube/callback/</code></td><td>Handles <code>?code=&amp;state=</code> from Google, stores credentials</td></tr>
+<tr><td>GET</td><td><code>/api/youtube/playlists/</code></td><td>Lists user's YouTube playlists live (not yet stored in DB)</td></tr>
+</table>
+
+<p><strong>Key trick:</strong> Pass the DRF token inside the OAuth <code>state</code> parameter (as JSON) so you know which user is returning from Google.</p>
+
+<p><strong>Files:</strong> <code>models.py</code>, <code>youtube.py</code> (new), <code>views.py</code>, <code>urls.py</code>, <code>settings.py</code>, <code>requirements.txt</code><br>
+<strong>New deps:</strong> <code>google-api-python-client</code>, <code>google-auth-oauthlib</code></p>
+</div>
+
+<!-- ====== Phase 3 ====== -->
+<div class="phase p3">
+<h3><span class="badge badge-orange">Phase 3</span> Data Models &amp; REST API</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Playlists/videos stored in DB, served from your backend. Archived videos marked "removed on {date}". Notes per user per video persisted server-side.</p>
+
+<div class="section-label">Django concepts to learn</div>
+<p><code>ModelSerializer</code>, <code>ModelViewSet</code>, <code>DefaultRouter</code>, <code>ForeignKey</code>, <code>unique_together</code>, <code>@action</code> decorator, <code>get_queryset</code> filtering, Django admin</p>
+
+<h4>Models</h4>
+<h4>Playlist</h4>
+<table>
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>youtube_id</code></td><td>CharField(255)</td><td>Unique</td></tr>
+<tr><td><code>user</code></td><td>FK &rarr; User</td><td>Owner</td></tr>
+<tr><td><code>title</code></td><td>CharField(500)</td><td></td></tr>
+<tr><td><code>channel_title</code></td><td>CharField(500)</td><td></td></tr>
+<tr><td><code>thumbnail_url</code></td><td>URLField(blank=True)</td><td></td></tr>
+<tr><td><code>video_count</code></td><td>IntegerField(default=0)</td><td></td></tr>
+<tr><td><code>published_at</code></td><td>DateTimeField(null=True)</td><td></td></tr>
+<tr><td><code>last_synced_at</code></td><td>DateTimeField(null=True)</td><td>When last fetched from YT</td></tr>
+<tr><td colspan="2"><code>created_at</code>, <code>updated_at</code></td><td>auto_now_add + auto_now</td></tr>
+</table>
+
+<h4>Video</h4>
+<table>
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>youtube_id</code></td><td>CharField(255)</td><td></td></tr>
+<tr><td><code>playlist</code></td><td>FK &rarr; Playlist</td><td>related_name="videos"</td></tr>
+<tr><td><code>title</code></td><td>CharField(500)</td><td></td></tr>
+<tr><td><code>channel_title</code></td><td>CharField(500)</td><td></td></tr>
+<tr><td><code>duration</code></td><td>CharField(50)</td><td>ISO 8601 string (e.g. PT18M42S)</td></tr>
+<tr><td><code>thumbnail_url</code></td><td>URLField(blank=True)</td><td></td></tr>
+<tr><td><code>position</code></td><td>IntegerField(default=0)</td><td></td></tr>
+<tr><td><code>view_count</code></td><td>BigIntegerField(default=0)</td><td></td></tr>
+<tr><td><strong><code>removed_at</code></strong></td><td>DateTimeField(null=True)</td><td>null = still active; set = removed on this date</td></tr>
+<tr><td colspan="2"><code>created_at</code>, <code>updated_at</code></td><td>auto_now_add + auto_now</td></tr>
+</table>
+<p>Meta: <code>unique_together = ("youtube_id", "playlist")</code></p>
+
+<h4>Note</h4>
+<table>
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td><code>user</code></td><td>FK &rarr; User</td><td></td></tr>
+<tr><td><code>video</code></td><td>FK &rarr; Video</td><td></td></tr>
+<tr><td><code>content</code></td><td>TextField(blank=True)</td><td>Markdown</td></tr>
+<tr><td colspan="2"><code>created_at</code>, <code>updated_at</code></td><td>auto_now_add + auto_now</td></tr>
+</table>
+<p>Meta: <code>unique_together = ("user", "video")</code> — one note per user per video</p>
+
+<h4>Endpoints (via DRF Router)</h4>
+<table>
+<tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td>GET</td><td><code>/api/playlists/</code></td><td>List current user's playlists</td></tr>
+<tr><td>POST</td><td><code>/api/playlists/</code></td><td>Create a playlist</td></tr>
+<tr><td>GET/PATCH/DELETE</td><td><code>/api/playlists/{id}/</code></td><td>Retrieve/update/delete</td></tr>
+<tr><td>POST</td><td><code>/api/playlists/{id}/sync/</code></td><td><strong>Custom action:</strong> re-fetch from YT, mark removed videos</td></tr>
+<tr><td>GET</td><td><code>/api/videos/</code></td><td>List videos (filterable by <code>?playlist=</code>)</td></tr>
+<tr><td>GET</td><td><code>/api/videos/{id}/</code></td><td>Video detail</td></tr>
+<tr><td>GET/POST</td><td><code>/api/notes/</code></td><td>List/create notes</td></tr>
+<tr><td>GET/PATCH/DELETE</td><td><code>/api/notes/{id}/</code></td><td>Retrieve/update/delete note</td></tr>
+</table>
+
+<h4>Sync Logic (video retention)</h4>
+<pre>POST /api/playlists/{id}/sync/
+
+1. Fetch current playlist items from YouTube API
+2. DB videos whose youtube_id is NOT in API response → set removed_at = now()
+3. Videos in API response but not in DB → create
+4. Videos in both → update metadata (title, viewCount, etc.)
+5. Update playlist.last_synced_at</pre>
+
+<p><strong>Files:</strong> <code>models.py</code>, <code>serializers.py</code>, <code>views.py</code>, <code>urls.py</code>, <code>admin.py</code><br>
+<strong>New deps:</strong> None</p>
+</div>
+
+<!-- ====== Phase 4 ====== -->
+<div class="phase p4">
+<h3><span class="badge badge-purple">Phase 4</span> Gemini AI Integration</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">AI-powered video analysis and chat about videos.</p>
+
+<div class="section-label">Django concepts to learn</div>
+<p>Calling external APIs from Django, serializer validation, environment variable management</p>
+
+<h4>New Module: <code>backend/api/gemini.py</code></h4>
+<p>Functions for calling Gemini API with video context, formatting prompts.</p>
+
+<h4>Endpoints</h4>
+<table>
+<tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td>POST</td><td><code>/api/videos/{id}/analyze/</code></td><td>Returns AI analysis (summary, key topics)</td></tr>
+<tr><td>POST</td><td><code>/api/videos/{id}/chat/</code></td><td>Accepts <code>{"message": "..."}</code>, optionally <code>{"history": [...]}</code>, returns AI reply</td></tr>
+</table>
+
+<p><strong>Chat state:</strong> Start stateless — the frontend sends full conversation history each request. Add a <code>ChatMessage</code> model later if needed.</p>
+
+<p><strong>Files:</strong> <code>gemini.py</code> (new), <code>views.py</code>, <code>urls.py</code>, <code>settings.py</code>, <code>requirements.txt</code><br>
+<strong>New deps:</strong> <code>google-genai</code></p>
+</div>
+
+<!-- ====== Phase 5 ====== -->
+<div class="phase p5">
+<h3><span class="badge badge-muted">Phase 5</span> Frontend Wiring (High-Level Reference)</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Frontend consumes the new backend APIs instead of mock data and localStorage.</p>
+
+<ol>
+  <li>Create <code>frontend/src/services/api.ts</code> — fetch wrapper with token management</li>
+  <li>Add Login/Register pages with auth context</li>
+  <li>Replace mock data imports with API calls on all pages</li>
+  <li>Replace localStorage notes with API-backed notes</li>
+  <li>Add YouTube connect button flow</li>
+  <li>Adjust TypeScript types to match API response shapes</li>
+</ol>
+</div>
+
+<!-- ====== Flow ====== -->
+<hr>
+<h2>Implementation Order</h2>
+<div class="flow">
+  Phase 1 (Auth) &rarr; Phase 2 (YouTube OAuth) &rarr; Phase 3 (Models + API) &rarr; Phase 4 (Gemini) &rarr; Phase 5 (Frontend)
+</div>
+<p style="text-align:center;color:var(--muted);margin-top:0.5rem;">Phases 2 and 3 are semi-parallel — you can build Phase 3 models first, then wire the sync action after Phase 2.</p>
+
+<!-- ====== Verification ====== -->
+<hr>
+<h2>Verification</h2>
+<p>Test each phase with <code>curl</code> or Django's browsable API:</p>
+
+<table>
+<tr><th>Phase</th><th>Test Flow</th></tr>
+<tr><td>1</td><td>Register &rarr; login &rarr; access <code>/api/auth/me/</code> with token &rarr; logout &rarr; verify 401</td></tr>
+<tr><td>2</td><td>Hit <code>/api/youtube/auth-url/</code> &rarr; complete OAuth in browser &rarr; verify credentials stored in DB &rarr; hit <code>/api/youtube/playlists/</code></td></tr>
+<tr><td>3</td><td>Hit <code>/api/playlists/</code> &rarr; sync a playlist &rarr; verify videos appear &rarr; verify <code>removed_at</code> on missing videos &rarr; create/update a note</td></tr>
+<tr><td>4</td><td>Send a chat message &rarr; verify AI response</td></tr>
+</table>
+
+<pre># Run backend
+cd backend && python manage.py runserver
+
+# Run frontend
+cd frontend && npm run dev</pre>
+
+<!-- ====== Design Decisions ====== -->
+<hr>
+<h2>Key Design Decisions</h2>
+<table>
+<tr><th>Decision</th><th>Choice</th><th>Why</th></tr>
+<tr><td>Auth</td><td>DRF TokenAuthentication</td><td>Simplest. JWT can come later.</td></tr>
+<tr><td>User model</td><td>Built-in <code>User</code></td><td>Enough for now. Don't over-engineer.</td></tr>
+<tr><td>OAuth tokens</td><td>Single <code>TextField</code> with <code>Credentials.to_json()</code></td><td>Google's library handles serialization.</td></tr>
+<tr><td>OAuth callback auth</td><td><code>state</code> param carries DRF token</td><td>Avoids cookie complexity.</td></tr>
+<tr><td>Views</td><td><code>ModelViewSet</code> + <code>DefaultRouter</code></td><td>Standard DRF, minimal boilerplate.</td></tr>
+<tr><td>Video removal</td><td><code>removed_at</code> soft-delete</td><td>Matches requirement exactly.</td></tr>
+<tr><td>Notes</td><td><code>unique_together(user, video)</code></td><td>One note per user per video.</td></tr>
+<tr><td>Gemini chat</td><td>Stateless (history in request)</td><td>Simpler backend. Add persistence later.</td></tr>
+</table>
+
+</body>
+</html>

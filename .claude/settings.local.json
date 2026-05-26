@@ -2,6 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Location)",
       "PowerShell(npm *)",
       "PowerShell(py *)",
       "PowerShell(New-Item *)",
@@ -11,12 +13,49 @@
       "Bash(curl -s http://localhost:8000/api/)",
       "Bash(npm install *)",
       "Bash(npx tsc *)",
-      "Bash(git checkout *)",
-      "Bash(git add *)",
-      "Bash(git commit -m '@ *)",
-      "Bash(git push *)",
+      "Bash(git *)",
+      "Bash(Set-Location *)",
+      "PowerShell(Set-Location *)",
       "Bash(npm ls *)",
-      "PowerShell(npx tsc -b --noEmit 2>&1)"
+      "PowerShell(npx tsc -b --noEmit 2>&1)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube playlist\" -Recurse -Depth 2 | Where-Object { $_.Name -ne '.git' } | Select-Object FullName | Out-String -Width 500)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube playlist\\\\frontend\\\\src\" -Recurse -Depth 3 | Where-Object { -not $_.PSIsContainer } | Select-Object FullName)",
+      "Bash(New-Item *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\notify.wav').PlaySync()\""
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"[System.Media.SystemSounds]::Hand.Play()\""
+          }
+        ]
+      }
+    ],
+    "Elicitation": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"[System.Media.SystemSounds]::Asterisk.Play()\""
+          }
+        ]
+      }
     ]
   }
 }

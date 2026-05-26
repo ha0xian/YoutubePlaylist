@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frontend Feature Plan - YouTube Playlist Viewer</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #2a2a2a;
+    --text: #e0e0e0;
+    --muted: #a0a0a0;
+    --accent: #cc0000;
+    --green: #4caf50;
+    --blue: #64b5f6;
+    --orange: #ffb74d;
+    --purple: #ce93d8;
+    --yellow: #ffd54f;
+    --pink: #f48fb1;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+
+  h1 { font-size: 2rem; margin-bottom: 0.25rem; color: #fff; }
+  h2 { font-size: 1.4rem; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid var(--surface2); }
+  h3 { font-size: 1.1rem; margin: 1.5rem 0 0.75rem; color: #fff; }
+  h4 { font-size: 1rem; margin: 1rem 0 0.5rem; color: #fff; }
+  p, li { color: var(--text); }
+  ul, ol { padding-left: 1.5rem; }
+  li { margin: 0.3rem 0; }
+
+  code {
+    background: var(--surface2);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+    color: #fff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--surface2);
+    vertical-align: top;
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  hr { border: none; border-top: 1px solid var(--surface2); margin: 2rem 0; }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+  }
+
+  .intro {
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+  }
+
+  .phase {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border-left: 4px solid var(--accent);
+  }
+
+  .phase h3 { margin-top: 0; }
+  .p1 { border-left-color: var(--green); }
+  .p2 { border-left-color: var(--blue); }
+  .p3 { border-left-color: var(--orange); }
+  .p4 { border-left-color: var(--purple); }
+  .p5 { border-left-color: var(--yellow); }
+  .p6 { border-left-color: var(--pink); }
+  .p7 { border-left-color: var(--accent); }
+  .p8 { border-left-color: var(--muted); }
+
+  .badge {
+    display: inline-block;
+    padding: 0.15em 0.6em;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+  }
+
+  .badge-green { background: #2e7d32; color: #fff; }
+  .badge-blue { background: #1565c0; color: #fff; }
+  .badge-orange { background: #e65100; color: #fff; }
+  .badge-purple { background: #6a1b9a; color: #fff; }
+  .badge-yellow { background: #8a6d00; color: #fff; }
+  .badge-pink { background: #ad1457; color: #fff; }
+  .badge-red { background: #b71c1c; color: #fff; }
+  .badge-muted { background: #424242; color: #ddd; }
+
+  .section-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 1rem 0 0.25rem;
+  }
+
+  .flow {
+    text-align: center;
+    font-size: 1rem;
+    padding: 1rem;
+    background: var(--surface);
+    border-radius: 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .state-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .state {
+    background: var(--surface);
+    border: 1px solid var(--surface2);
+    border-radius: 8px;
+    padding: 0.85rem;
+  }
+
+  .state strong {
+    display: block;
+    color: #fff;
+    margin-bottom: 0.25rem;
+  }
+
+  .state span {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+
+<h1>Frontend Feature Plan</h1>
+<p class="subtitle">YouTube Playlist Viewer - companion plan for the Django + DRF backend implementation</p>
+
+<div class="intro">
+  <p><strong>Context:</strong> The current React + TypeScript frontend has three mock-data pages: playlist browser, playlist detail, and watch page with local Markdown notes. This plan describes the frontend features needed once the backend adds authentication, YouTube OAuth, stored playlists/videos, per-user notes, sync, removed-video tracking, and Gemini-powered analysis/chat.</p>
+</div>
+
+<div class="phase p1">
+<h3><span class="badge badge-green">1</span> Auth Shell</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Make the app multi-user from the first screen: register, login, logout, current user, and protected routes.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Login and register pages that call <code>/api/auth/login/</code> and <code>/api/auth/register/</code>.</li>
+  <li>Auth context/provider that stores the DRF token and current user from <code>/api/auth/me/</code>.</li>
+  <li>Protected route wrapper for playlist, detail, and watch pages.</li>
+  <li>Header user area with username/email and logout action.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Logged-out users are redirected to login when opening protected pages.</li>
+  <li>Register and login both land on the playlist browser with a valid token.</li>
+  <li>Logout clears the token and prevents access to protected API calls.</li>
+</ul>
+</div>
+
+<div class="phase p2">
+<h3><span class="badge badge-blue">2</span> YouTube Connection &amp; Onboarding</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Guide each user through connecting their own YouTube account before playlist data is available.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Playlist-page empty state with a clear <strong>Connect YouTube</strong> action.</li>
+  <li>OAuth starter that calls <code>/api/youtube/auth-url/</code> and redirects to the returned URL.</li>
+  <li>Return/callback handling state for success, cancellation, and connection failure.</li>
+  <li>Connected/disconnected status indicator in the header or account menu.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Users without credentials see onboarding instead of an empty playlist grid.</li>
+  <li>Clicking connect starts the backend-provided OAuth flow.</li>
+  <li>Connection errors are shown with a retry action.</li>
+</ul>
+</div>
+
+<div class="phase p3">
+<h3><span class="badge badge-orange">3</span> API-Backed Playlist &amp; Video Browsing</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Replace mock data with backend data while preserving the existing three-page navigation model.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Shared <code>api.ts</code> fetch wrapper with base URL, token header, JSON parsing, and unauthorized handling.</li>
+  <li>Playlist browser using <code>GET /api/playlists/</code>.</li>
+  <li>Playlist detail using <code>GET /api/videos/?playlist={id}</code>.</li>
+  <li>Watch page using <code>GET /api/videos/{id}/</code> for title, metadata, and YouTube embed id.</li>
+  <li>TypeScript response types aligned with backend serializer fields.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Mock data imports are removed from page-level data flow.</li>
+  <li>Loading, empty, and error views appear on every API-backed page.</li>
+  <li>Unauthorized API responses return users to login.</li>
+</ul>
+</div>
+
+<div class="phase p4">
+<h3><span class="badge badge-purple">4</span> Sync &amp; Removed-Video UI</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Expose playlist sync and make removed YouTube videos visible instead of silently disappearing.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Manual sync button on playlist cards or playlist detail pages using <code>POST /api/playlists/{id}/sync/</code>.</li>
+  <li>Show <code>last_synced_at</code> in playlist metadata.</li>
+  <li>Sync loading, success, and failure feedback.</li>
+  <li>Removed-video badge and dimmed styling when <code>removed_at</code> is present.</li>
+  <li>Video filters: <strong>All</strong>, <strong>Available</strong>, and <strong>Removed</strong>.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Sync cannot be double-submitted while already running.</li>
+  <li>Removed videos show "Removed on {date}" and remain accessible for notes/history.</li>
+  <li>Filters update the video list without losing playlist context.</li>
+</ul>
+</div>
+
+<div class="phase p5">
+<h3><span class="badge badge-yellow">5</span> Per-Video Backend Notes</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Replace global localStorage notes with one saved Markdown note per user per video.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Load the current user's note for the selected video from <code>/api/notes/</code>.</li>
+  <li>Create or patch notes when content changes.</li>
+  <li>Keep the existing edit/preview Markdown interface.</li>
+  <li>Show save states: saving, saved, failed, and retry.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Notes are scoped to the active video and user.</li>
+  <li>Refreshing the watch page restores the saved note from the backend.</li>
+  <li>Network failures do not erase unsaved text.</li>
+</ul>
+</div>
+
+<div class="phase p6">
+<h3><span class="badge badge-pink">6</span> AI Analysis &amp; Chat Panel</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Add Gemini-powered video analysis and stateless chat alongside notes on the watch page.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Tabs on the watch sidebar: <strong>Notes</strong> and <strong>AI</strong>.</li>
+  <li><strong>Analyze video</strong> action calling <code>POST /api/videos/{id}/analyze/</code>.</li>
+  <li>Summary/key topics result display.</li>
+  <li>Chat composer that sends <code>message</code> and full local <code>history</code> to <code>POST /api/videos/{id}/chat/</code>.</li>
+  <li>AI response pending, error, and retry states.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Users can switch between notes and AI without losing unsaved note text.</li>
+  <li>Chat history is included in each request during the active browser session.</li>
+  <li>AI failures are visible and do not break video playback.</li>
+</ul>
+</div>
+
+<div class="phase p7">
+<h3><span class="badge badge-red">7</span> Search &amp; Filter Polish</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Make large playlist libraries and long playlists manageable.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Playlist search by title and channel.</li>
+  <li>Video search inside a playlist.</li>
+  <li>Sort videos by playlist position, published date, and view count where available.</li>
+  <li>Clear empty results state with a reset filter action.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Search and filters are keyboard-friendly.</li>
+  <li>Empty filtered results are distinct from a truly empty playlist.</li>
+  <li>Filter state does not corrupt navigation to the watch page.</li>
+</ul>
+</div>
+
+<div class="phase p8">
+<h3><span class="badge badge-muted">8</span> Account &amp; Settings Page</h3>
+<p style="color:var(--muted);margin-bottom:1rem;">Give users a small control surface for account and integration status.</p>
+
+<div class="section-label">UI to build</div>
+<ul>
+  <li>Account page or menu showing username, email, and YouTube connection status.</li>
+  <li>Reconnect YouTube action using the existing OAuth flow.</li>
+  <li>Logout action and backend connectivity/error status.</li>
+  <li>Placeholder for future preferences such as default video filters or AI behavior.</li>
+</ul>
+
+<div class="section-label">Acceptance checks</div>
+<ul>
+  <li>Users can identify which account is active.</li>
+  <li>Reconnect flow is available without needing to log out.</li>
+  <li>Settings remains useful even before advanced preferences exist.</li>
+</ul>
+</div>
+
+<hr>
+<h2>UI States to Implement</h2>
+<div class="state-grid">
+  <div class="state"><strong>Loading</strong><span>Initial page/API fetches and sync requests.</span></div>
+  <div class="state"><strong>Empty</strong><span>No playlists, no videos, no notes, or no AI messages yet.</span></div>
+  <div class="state"><strong>Error</strong><span>Failed API calls with retry affordances.</span></div>
+  <div class="state"><strong>Unauthorized</strong><span>Expired or missing token redirects to login.</span></div>
+  <div class="state"><strong>Saving</strong><span>Notes are being persisted to the backend.</span></div>
+  <div class="state"><strong>Synced</strong><span>Playlist has a visible last synced timestamp.</span></div>
+  <div class="state"><strong>Disconnected</strong><span>YouTube OAuth has not been completed or needs reconnect.</span></div>
+  <div class="state"><strong>Removed Video</strong><span>Video is archived with a removed date but remains viewable as history.</span></div>
+  <div class="state"><strong>AI Pending</strong><span>Analysis or chat response is being generated.</span></div>
+</div>
+
+<hr>
+<h2>Recommended Implementation Order</h2>
+<div class="flow">
+  Auth shell &rarr; YouTube onboarding &rarr; API-backed browsing &rarr; Sync and removed videos &rarr; Backend notes &rarr; AI panel &rarr; Search/filter polish &rarr; Account/settings
+</div>
+<p style="text-align:center;color:var(--muted);margin-top:0.5rem;">This order follows the backend phases and avoids building UI that has no stable API surface yet.</p>
+
+<hr>
+<h2>Implementation Notes</h2>
+<table>
+<tr><th>Area</th><th>Default approach</th><th>Reason</th></tr>
+<tr><td>Routing</td><td>Keep the existing playlist, detail, and watch routes; add auth routes and protected wrappers.</td><td>Preserves the current app shape while adding multi-user behavior.</td></tr>
+<tr><td>Token storage</td><td>Store the DRF token in browser storage through a single auth context.</td><td>Matches the backend's simple TokenAuthentication design.</td></tr>
+<tr><td>Notes</td><td>Save one note per user/video and preserve local draft text during failures.</td><td>Prevents data loss and matches the backend uniqueness rule.</td></tr>
+<tr><td>AI chat</td><td>Keep chat history in frontend state and send it with each request.</td><td>Matches the stateless backend plan.</td></tr>
+<tr><td>Removed videos</td><td>Show archived videos in-place with filters instead of hiding them by default.</td><td>The product goal is retention/history, not silent deletion.</td></tr>
+</table>
+
+</body>
+</html>
