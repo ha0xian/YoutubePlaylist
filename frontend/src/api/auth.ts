@@ -20,7 +20,12 @@ export interface AuthResponse {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
-async function parseJson<T>(response: Response): Promise<T> {
+export async function parseJson<T>(response: Response): Promise<T> {
+  // 204/205 No Content — nothing to parse
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T
+  }
+
   const text = await response.text()
   const data = text ? JSON.parse(text) : null
 
@@ -39,7 +44,7 @@ async function parseJson<T>(response: Response): Promise<T> {
   return data as T
 }
 
-async function authFetch<T>(
+export async function authFetch<T>(
   path: string,
   options: RequestInit = {},
   token?: string | null,

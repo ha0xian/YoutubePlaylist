@@ -14,6 +14,14 @@ export interface Video {
   viewCount: number
 }
 
+export interface VideoNote {
+  id: number
+  video: number
+  body_markdown: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Playlist {
   id: string
   title: string
