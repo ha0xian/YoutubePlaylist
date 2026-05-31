@@ -18,6 +18,8 @@ export default function VideoListItem({ video }: VideoListItemProps) {
   const handleClick = () => {
     localStorage.setItem('youtube-video-id', video.youtubeVideoId)
     localStorage.setItem('video-db-id', String(video.id))
+    localStorage.setItem('video-is-removed', String(video.isRemoved))
+    localStorage.setItem('video-title', video.title)
     navigate(`/watch/${video.youtubeVideoId}`)
   }
 
