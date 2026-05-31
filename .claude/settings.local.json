@@ -20,7 +20,9 @@
       "PowerShell(npx tsc -b --noEmit 2>&1)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube playlist\" -Recurse -Depth 2 | Where-Object { $_.Name -ne '.git' } | Select-Object FullName | Out-String -Width 500)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube playlist\\\\frontend\\\\src\" -Recurse -Depth 3 | Where-Object { -not $_.PSIsContainer } | Select-Object FullName)",
-      "Bash(New-Item *)"
+      "Bash(New-Item *)",
+      "PowerShell($env:TOKEN_ENCRYPTION_KEY = \"glJI8FBu6EFALuoWQb55ri1FM34rUAz0GCpsawmAdqk=\"; Set-Location -Path \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube Playlist\\\\backend\"; & .\\\\.venv\\\\Scripts\\\\python.exe manage.py test --verbosity=2 2>&1)",
+      "PowerShell($env:TOKEN_ENCRYPTION_KEY=\"glJI8FBu6EFALuoWQb55ri1FM34rUAz0GCpsawmAdqk=\"; Set-Location \"C:\\\\Users\\\\NorthWhite\\\\Desktop\\\\Project\\\\Youtube Playlist\\\\backend\"; .\\\\.venv\\\\Scripts\\\\python.exe -c \"open\\('config/settings.py','w'\\).write\\(open\\('config/settings.py'\\).read\\(\\)\\)\" -c \"exit\\(\\)\"; .\\\\.venv\\\\Scripts\\\\python.exe manage.py test api.tests.TestUnhidePlaylist --verbosity=2 2>&1)"
     ]
   },
   "hooks": {

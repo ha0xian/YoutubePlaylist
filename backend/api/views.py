@@ -1,413 +1,171 @@
 import logging
-from urllib.parse import urlencode
-
 import requests
+from urllib.parse import urlencode
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from . import youtube_service
 from .encryption import encrypt_token
 from .models import Playlist, Video, VideoNote, YouTubeOAuthToken
-from .serializers import (
-    LinkPlaylistByUrlSerializer,
-    PlaylistSerializer,
-    PlaylistSummarySerializer,
-    VideoNoteSerializer,
-)
+from .serializers import LinkPlaylistByUrlSerializer, PlaylistSerializer, PlaylistSummarySerializer, VideoNoteSerializer
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------------
-# Health / root
-# ---------------------------------------------------------------------------
-
-
 @api_view(["GET"])
 def api_root(request):
-    return Response({
-        "message": "Hello from Django REST Framework!",
-        "status": "ok",
-    })
-
-
-# ---------------------------------------------------------------------------
-# YouTube OAuth
-# ---------------------------------------------------------------------------
-
+    return Response({"message": "Hello from Django REST Framework!", "status": "ok"})
 
 class OAuthInitiateView(APIView):
-    """GET /api/youtube/auth-url/ -- return Google OAuth URL for the frontend."""
-
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        params = {
+        return Response({"auth_url": "https://accounts.google.com/o/oauth2/auth?" + urlencode({
             "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
             "redirect_uri": settings.GOOGLE_OAUTH_REDIRECT_URI,
             "response_type": "code",
             "scope": " ".join(youtube_service.YOUTUBE_SCOPES),
             "access_type": "offline",
-        }
-        auth_url = "https://accounts.google.com/o/oauth2/auth?" + urlencode(params)
-        return Response({"auth_url": auth_url})
-
+        })})
 
 class OAuthCallbackView(APIView):
-    """POST /api/youtube/callback/ -- exchange auth code for tokens and fetch playlists."""
-
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
         code = request.data.get("code", "")
         if not code:
-            return Response(
-                {"detail": "Authorization code is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Exchange the authorization code (server-side redirect_uri only --
-        # never accept it from the client, per security finding #1).
+            return Response({"detail": "Authorization code is required."}, status=400)
         try:
-            token_data = youtube_service.exchange_oauth_code(
-                code, settings.GOOGLE_OAUTH_REDIRECT_URI
-            )
+            td = youtube_service.exchange_oauth_code(code, settings.GOOGLE_OAUTH_REDIRECT_URI)
         except requests.RequestException:
-            return Response(
-                {"detail": "Invalid authorization code."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        access_token = token_data["access_token"]
-        refresh_token = token_data.get("refresh_token", "")
-        expires_in = token_data.get("expires_in", 3600)
-
-        # Encrypt and store tokens
-        YouTubeOAuthToken.objects.update_or_create(
-            user=request.user,
-            defaults={
-                "access_token": encrypt_token(access_token),
-                "refresh_token": encrypt_token(refresh_token) if refresh_token else b"",
-                "token_type": token_data.get("token_type", "Bearer"),
-                "expires_at": timezone.now() + timezone.timedelta(seconds=expires_in),
-            },
-        )
-
-        # Fetch the user's playlists via OAuth
+            return Response({"detail": "Invalid authorization code."}, status=400)
+        at = td["access_token"]
+        YouTubeOAuthToken.objects.update_or_create(user=request.user, defaults={
+            "access_token": encrypt_token(at),
+            "refresh_token": encrypt_token(td.get("refresh_token", "")) if td.get("refresh_token") else b"",
+            "token_type": td.get("token_type", "Bearer"),
+            "expires_at": timezone.now() + timezone.timedelta(seconds=td.get("expires_in", 3600)),
+        })
         try:
-            playlist_items = youtube_service.fetch_playlists(access_token)
+            items = youtube_service.fetch_playlists(at)
         except requests.RequestException:
-            return Response(
-                {"detail": "Failed to fetch YouTube playlists."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        created_playlists: list[Playlist] = []
-        for item in playlist_items:
-            playlist_id = item["id"]
-            snippet = item.get("snippet", {})
-            content_details = item.get("contentDetails", {})
-
-            playlist, _ = Playlist.objects.update_or_create(
-                user=request.user,
-                youtube_playlist_id=playlist_id,
-                defaults={
-                    "title": snippet.get("title", ""),
-                    "channel_title": snippet.get("channelTitle", ""),
-                    "thumbnail_url": (
-                        snippet.get("thumbnails", {})
-                        .get("default", {})
-                        .get("url", "")
-                    ),
-                    "description": snippet.get("description", ""),
-                    "video_count": content_details.get("itemCount", 0),
-                    "published_at": snippet.get("publishedAt"),
-                    "source_type": "oauth",
-                    "is_deleted": False,
-                    "is_hidden": False,
-                    "is_unlinked": False,
-                },
-            )
-            created_playlists.append(playlist)
-
-        serializer = PlaylistSummarySerializer(created_playlists, many=True)
-        return Response(
-            {"playlists": serializer.data, "count": len(created_playlists)},
-            status=status.HTTP_201_CREATED,
-        )
-
+            return Response({"detail": "Failed to fetch YouTube playlists."}, status=502)
+        created = []
+        for item in items:
+            s = item.get("snippet", {})
+            p, _ = Playlist.objects.update_or_create(user=request.user, youtube_playlist_id=item["id"], defaults={
+                "title": s.get("title", ""), "channel_title": s.get("channelTitle", ""),
+                "thumbnail_url": s.get("thumbnails", {}).get("default", {}).get("url", ""),
+                "description": s.get("description", ""), "video_count": item.get("contentDetails", {}).get("itemCount", 0),
+                "published_at": s.get("publishedAt"), "source_type": "oauth", "is_hidden": False, "is_unlinked": False,
+            })
+            created.append(p)
+        return Response({"playlists": PlaylistSummarySerializer(created, many=True).data, "count": len(created)}, status=201)
 
 class DisconnectYouTubeView(APIView):
-    """POST /api/youtube/disconnect/ -- remove OAuth token and mark OAuth playlists unlinked."""
-
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
-        # Idempotent: delete token if one exists
         YouTubeOAuthToken.objects.filter(user=request.user).delete()
-
-        # Mark OAuth-sourced playlists as unlinked; URL-sourced playlists are preserved.
-        Playlist.objects.filter(
-            user=request.user, source_type="oauth"
-        ).update(is_unlinked=True)
-
+        Playlist.objects.filter(user=request.user, source_type="oauth").update(is_unlinked=True)
         return Response({"detail": "YouTube account disconnected."})
 
-
-# ---------------------------------------------------------------------------
-# Playlist CRUD
-# ---------------------------------------------------------------------------
-
-
 class PlaylistListView(APIView):
-    """GET /api/playlists/ -- list visible, linked playlists for the current user."""
-
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        playlists = Playlist.objects.filter(
-            user=request.user,
-            is_deleted=False,
-            is_hidden=False,
-            is_unlinked=False,
-        )
-        serializer = PlaylistSummarySerializer(playlists, many=True)
-        return Response(serializer.data)
-
+        qs = Playlist.objects.filter(user=request.user, is_hidden=False, is_unlinked=False)
+        return Response(PlaylistSummarySerializer(qs, many=True).data)
 
 class HiddenPlaylistListView(APIView):
-    """GET /api/playlists/hidden/ -- list hidden playlists for the current user."""
-
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
-        playlists = Playlist.objects.filter(
-            user=request.user,
-            is_deleted=False,
-            is_hidden=True,
-            is_unlinked=False,
-        )
-        serializer = PlaylistSummarySerializer(playlists, many=True)
-        return Response(serializer.data)
-
+        qs = Playlist.objects.filter(user=request.user, is_hidden=True, is_unlinked=False)
+        return Response(PlaylistSummarySerializer(qs, many=True).data)
 
 class PlaylistDetailView(APIView):
-    """GET /api/playlists/<id>/ -- return a single playlist with nested videos."""
-
     permission_classes = [IsAuthenticated]
-
     def get(self, request, pk):
-        playlist = get_object_or_404(
-            Playlist,
-            pk=pk,
-            user=request.user,
-            is_deleted=False,
-        )
-        serializer = PlaylistSerializer(playlist)
-        return Response(serializer.data)
-
+        return Response(PlaylistSerializer(get_object_or_404(Playlist, pk=pk, user=request.user)).data)
 
 class LinkPlaylistByUrlView(APIView):
-    """POST /api/playlists/link/ -- import a public YouTube playlist by URL."""
-
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
         if not settings.YOUTUBE_API_KEY:
-            return Response(
-                {"detail": "YouTube API key not configured."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        serializer = LinkPlaylistByUrlSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        url = serializer.validated_data["url"]
-        playlist_id = serializer.validated_data["playlist_id"]
-
-        # Fetch playlist items from YouTube
+            return Response({"detail": "YouTube API key not configured."}, status=503)
+        ser = LinkPlaylistByUrlSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        url = ser.validated_data["url"]
+        pid = ser.validated_data["playlist_id"]
         try:
-            playlist_items = youtube_service.fetch_playlist_items(
-                settings.YOUTUBE_API_KEY, playlist_id
-            )
+            items = youtube_service.fetch_playlist_items(settings.YOUTUBE_API_KEY, pid)
         except requests.RequestException:
-            return Response(
-                {"url": url, "detail": "Invalid or non-existent YouTube playlist URL."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not playlist_items:
-            return Response(
-                {"url": url, "detail": "Invalid or non-existent YouTube playlist URL."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Extract video IDs and fetch full details
-        video_ids: list[str] = []
-        for item in playlist_items:
-            resource_id = item.get("snippet", {}).get("resourceId", {})
-            vid = resource_id.get("videoId")
-            if vid:
-                video_ids.append(vid)
-
-        video_details = youtube_service.fetch_video_details(
-            settings.YOUTUBE_API_KEY, video_ids
-        )
-        video_details_map = {item["id"]: item for item in video_details}
-
-        # Use the first item's snippet for playlist-level metadata
-        first_snippet = playlist_items[0]["snippet"]
-
-        playlist, _ = Playlist.objects.update_or_create(
-            user=request.user,
-            youtube_playlist_id=playlist_id,
-            defaults={
-                "title": first_snippet.get("title", ""),
-                "channel_title": first_snippet.get("channelTitle", ""),
-                "thumbnail_url": (
-                    first_snippet.get("thumbnails", {})
-                    .get("default", {})
-                    .get("url", "")
-                ),
-                "description": first_snippet.get("description", ""),
-                "video_count": len(video_ids),
-                "published_at": first_snippet.get("publishedAt"),
-                "source_type": "url",
-                "is_deleted": False,
-                "is_hidden": False,
-                "is_unlinked": False,
-            },
-        )
-
-        # Create / update video records
-        for idx, item in enumerate(playlist_items):
-            snippet = item.get("snippet", {})
-            resource_id = snippet.get("resourceId", {})
-            video_id = resource_id.get("videoId")
-            if not video_id:
+            return Response({"url": url, "detail": "Invalid or non-existent YouTube playlist URL."}, status=400)
+        if not items:
+            return Response({"url": url, "detail": "Invalid or non-existent YouTube playlist URL."}, status=400)
+        vids = [item["snippet"]["resourceId"]["videoId"] for item in items if "videoId" in item.get("snippet", {}).get("resourceId", {})]
+        dmap = {}
+        if vids:
+            dmap = {d["id"]: d for d in youtube_service.fetch_video_details(settings.YOUTUBE_API_KEY, vids)}
+        s0 = items[0]["snippet"]
+        pl, _ = Playlist.objects.update_or_create(user=request.user, youtube_playlist_id=pid, defaults={
+            "title": s0.get("title", ""), "channel_title": s0.get("channelTitle", ""),
+            "thumbnail_url": s0.get("thumbnails", {}).get("default", {}).get("url", ""),
+            "description": s0.get("description", ""), "video_count": len(vids),
+            "published_at": s0.get("publishedAt"), "source_type": "url", "is_hidden": False, "is_unlinked": False,
+        })
+        for idx, item in enumerate(items):
+            vid = item.get("snippet", {}).get("resourceId", {}).get("videoId")
+            if not vid:
                 continue
-
-            details = video_details_map.get(video_id, {})
-            content_details = details.get("contentDetails", {})
-            statistics = details.get("statistics", {})
-            detail_snippet = details.get("snippet", {})
-
-            Video.objects.update_or_create(
-                playlist=playlist,
-                youtube_video_id=video_id,
-                defaults={
-                    "title": snippet.get("title", ""),
-                    "channel_title": snippet.get(
-                        "channelTitle", detail_snippet.get("channelTitle", "")
-                    ),
-                    "duration": content_details.get("duration", ""),
-                    "thumbnail_url": (
-                        snippet.get("thumbnails", {})
-                        .get("default", {})
-                        .get("url", "")
-                    ),
-                    "published_at": snippet.get("publishedAt"),
-                    "view_count": int(statistics.get("viewCount", 0)),
-                    "position": idx,
-                    "is_deleted": False,
-                },
-            )
-
-        # Reload to include related videos
-        playlist.refresh_from_db()
-        result_serializer = PlaylistSerializer(playlist)
-        return Response(result_serializer.data, status=status.HTTP_201_CREATED)
-
+            d = dmap.get(vid, {})
+            snippet = item.get("snippet", {})
+            Video.objects.update_or_create(playlist=pl, youtube_video_id=vid, defaults={
+                "title": snippet.get("title", ""),
+                "channel_title": snippet.get("channelTitle", d.get("snippet", {}).get("channelTitle", "")),
+                "duration": d.get("contentDetails", {}).get("duration", ""),
+                "thumbnail_url": snippet.get("thumbnails", {}).get("default", {}).get("url", ""),
+                "published_at": snippet.get("publishedAt"),
+                "view_count": int(d.get("statistics", {}).get("viewCount", 0)),
+                "position": idx,
+            })
+        pl.refresh_from_db()
+        return Response(PlaylistSerializer(pl).data, status=201)
 
 class HidePlaylistView(APIView):
-    """POST /api/playlists/<id>/hide/ -- hide a playlist."""
-
     permission_classes = [IsAuthenticated]
-
     def post(self, request, pk):
-        playlist = get_object_or_404(
-            Playlist,
-            pk=pk,
-            user=request.user,
-            is_deleted=False,
-        )
-        playlist.is_hidden = True
-        playlist.save(update_fields=["is_hidden"])
+        p = get_object_or_404(Playlist, pk=pk, user=request.user)
+        p.is_hidden = True
+        p.save(update_fields=["is_hidden"])
         return Response({"detail": "Playlist hidden."})
 
+class UnhidePlaylistView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, pk):
+        p = get_object_or_404(Playlist, pk=pk, user=request.user)
+        p.is_hidden = False
+        p.save(update_fields=["is_hidden"])
+        return Response(PlaylistSummarySerializer(p).data)
 
 class UnlinkPlaylistView(APIView):
-    """POST /api/playlists/<id>/unlink/ -- unlink a playlist (data stays in DB)."""
-
     permission_classes = [IsAuthenticated]
-
     def post(self, request, pk):
-        playlist = get_object_or_404(
-            Playlist,
-            pk=pk,
-            user=request.user,
-            is_deleted=False,
-        )
-        playlist.is_unlinked = True
-        playlist.save(update_fields=["is_unlinked"])
+        p = get_object_or_404(Playlist, pk=pk, user=request.user)
+        p.is_unlinked = True
+        p.save(update_fields=["is_unlinked"])
         return Response({"detail": "Playlist unlinked."})
 
-
-# ---------------------------------------------------------------------------
-# Video Notes
-# ---------------------------------------------------------------------------
-
-
 class VideoNoteView(APIView):
-    """GET /api/notes/<video_id>/ -- return the current user's note for a video.
-
-    PUT /api/notes/<video_id>/ -- save the current user's note for a video.
-    """
-
     permission_classes = [IsAuthenticated]
-
     def get(self, request, video_id):
-        # Verify the video exists and belongs to the user
-        if not Video.objects.filter(
-            pk=video_id, playlist__user=request.user
-        ).exists():
-            return Response(
-                {"detail": "Video not found."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        note = VideoNote.objects.filter(
-            user=request.user, video_id=video_id
-        ).first()
+        if not Video.objects.filter(pk=video_id, playlist__user=request.user).exists():
+            return Response({"detail": "Video not found."}, status=404)
+        note = VideoNote.objects.filter(user=request.user, video_id=video_id).first()
         if note is None:
-            return Response({
-                "video_id": video_id,
-                "body_markdown": "",
-                "updated_at": None,
-            })
-        serializer = VideoNoteSerializer(note)
-        return Response(serializer.data)
-
+            return Response({"video_id": video_id, "body_markdown": "", "updated_at": None})
+        return Response(VideoNoteSerializer(note).data)
     def put(self, request, video_id):
-        video = get_object_or_404(
-            Video,
-            pk=video_id,
-            playlist__user=request.user,
-        )
-
-        note, _ = VideoNote.objects.update_or_create(
-            user=request.user,
-            video=video,
-            defaults={
-                "body_markdown": request.data.get("body_markdown", ""),
-            },
-        )
-        serializer = VideoNoteSerializer(note)
-        return Response(serializer.data)
+        v = get_object_or_404(Video, pk=video_id, playlist__user=request.user)
+        note, _ = VideoNote.objects.update_or_create(user=request.user, video=v, defaults={"body_markdown": request.data.get("body_markdown", "")})
+        return Response(VideoNoteSerializer(note).data)
