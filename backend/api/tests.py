@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import Playlist, SourceType, Video, YouTubeOAuthToken
+from .models import Playlist, SourceType, Video, VideoNote, YouTubeOAuthToken
 
 User = get_user_model()
 
@@ -148,16 +148,16 @@ class TestPlaylistModel(APITestCase):
                 position=1,
             )
 
-    def test_soft_delete_flag_defaults_to_false(self):
+    def test_boolean_flags_default_to_false(self):
         user = User.objects.create_user(
-            username="softdel",
-            email="sd@example.com",
+            username="flagtest",
+            email="ft@example.com",
             password="StrongPass123!",
         )
         playlist = Playlist.objects.create(
             user=user,
             youtube_playlist_id="PL888",
-            title="Soft Delete Test",
+            title="Flag Test",
             channel_title="Channel",
             thumbnail_url="https://example.com/thumb.jpg",
             source_type=SourceType.URL,
@@ -171,8 +171,9 @@ class TestPlaylistModel(APITestCase):
             thumbnail_url="https://example.com/v.jpg",
             position=0,
         )
-        self.assertFalse(playlist.is_deleted)
-        self.assertFalse(video.is_deleted)
+        self.assertFalse(playlist.is_hidden)
+        self.assertFalse(playlist.is_unlinked)
+        self.assertFalse(video.is_removed)
 
 
 class TestEncryption(APITestCase):
@@ -236,3 +237,113 @@ class TestFormatDuration(APITestCase):
         from .youtube_service import format_duration
 
         self.assertEqual(format_duration("not-a-duration"), "0:00")
+
+
+class TestVideoNoteModel(APITestCase):
+    def test_create_video_note(self):
+        user = User.objects.create_user(
+            username="notetest",
+            email="note@example.com",
+            password="StrongPass123!",
+        )
+        playlist = Playlist.objects.create(
+            user=user,
+            youtube_playlist_id="PLNOTE",
+            title="Note Test",
+            channel_title="Channel",
+            thumbnail_url="https://example.com/thumb.jpg",
+            source_type=SourceType.URL,
+        )
+        video = Video.objects.create(
+            playlist=playlist,
+            youtube_video_id="vid_note",
+            title="Note Video",
+            channel_title="Channel",
+            duration="PT1M",
+            thumbnail_url="https://example.com/v.jpg",
+            position=0,
+        )
+        note = VideoNote.objects.create(
+            user=user,
+            video=video,
+            body_markdown="# Hello\n\nThis is a **note**.",
+        )
+        self.assertEqual(note.user, user)
+        self.assertEqual(note.video, video)
+        self.assertEqual(note.body_markdown, "# Hello\n\nThis is a **note**.")
+        self.assertIsNotNone(note.created_at)
+        self.assertIsNotNone(note.updated_at)
+
+    def test_video_note_unique_together(self):
+        user = User.objects.create_user(
+            username="noteunique",
+            email="nu@example.com",
+            password="StrongPass123!",
+        )
+        playlist = Playlist.objects.create(
+            user=user,
+            youtube_playlist_id="PLNOTE2",
+            title="Note Test 2",
+            channel_title="Channel",
+            thumbnail_url="https://example.com/thumb.jpg",
+            source_type=SourceType.URL,
+        )
+        video = Video.objects.create(
+            playlist=playlist,
+            youtube_video_id="vid_note2",
+            title="Note Video 2",
+            channel_title="Channel",
+            duration="PT1M",
+            thumbnail_url="https://example.com/v.jpg",
+            position=0,
+        )
+        VideoNote.objects.create(
+            user=user,
+            video=video,
+            body_markdown="First note.",
+        )
+        with self.assertRaises(Exception):
+            VideoNote.objects.create(
+                user=user,
+                video=video,
+                body_markdown="Duplicate note.",
+            )
+
+    def test_video_note_str(self):
+        user = User.objects.create_user(
+            username="notestr",
+            email="ns@example.com",
+            password="StrongPass123!",
+        )
+        playlist = Playlist.objects.create(
+            user=user,
+            youtube_playlist_id="PLSTR",
+            title="Str Test",
+            channel_title="Channel",
+            thumbnail_url="https://example.com/thumb.jpg",
+            source_type=SourceType.URL,
+        )
+        video = Video.objects.create(
+            playlist=playlist,
+            youtube_video_id="vid_str",
+            title="Str Video",
+            channel_title="Channel",
+            duration="PT1M",
+            thumbnail_url="https://example.com/v.jpg",
+            position=0,
+        )
+        note = VideoNote.objects.create(
+            user=user,
+            video=video,
+            body_markdown="Some note.",
+        )
+        self.assertIn("notestr", str(note))
+        self.assertIn("video", str(note))
+
+
+class TestPaginatedGet(APITestCase):
+    def test_paginated_get_imported(self):
+        """Verify _paginated_get is importable from youtube_service."""
+        from .youtube_service import _paginated_get
+
+        self.assertTrue(callable(_paginated_get))

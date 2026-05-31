@@ -13,19 +13,16 @@ YOUTUBE_SCOPES = [
 MAX_VIDEO_IDS_PER_BATCH = 50
 
 
-def fetch_playlists(access_token: str) -> list[dict[str, Any]]:
-    """Fetch the authenticated user's playlists.
+def _paginated_get(
+    url: str,
+    params: dict[str, Any],
+    headers: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch all pages from a paginated YouTube Data API endpoint.
 
-    GET https://www.googleapis.com/youtube/v3/playlists?mine=true&part=snippet,contentDetails
+    Iterates through 'nextPageToken' until exhausted.
+    Returns the aggregated list of 'items' from all pages.
     """
-    url = f"{YOUTUBE_API_BASE}/playlists"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    params = {
-        "mine": "true",
-        "part": "snippet,contentDetails",
-        "maxResults": 50,
-    }
-
     items: list[dict[str, Any]] = []
     page_token: str | None = None
 
@@ -43,6 +40,21 @@ def fetch_playlists(access_token: str) -> list[dict[str, Any]]:
     return items
 
 
+def fetch_playlists(access_token: str) -> list[dict[str, Any]]:
+    """Fetch the authenticated user's playlists.
+
+    GET https://www.googleapis.com/youtube/v3/playlists?mine=true&part=snippet,contentDetails
+    """
+    url = f"{YOUTUBE_API_BASE}/playlists"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params: dict[str, Any] = {
+        "mine": "true",
+        "part": "snippet,contentDetails",
+        "maxResults": 50,
+    }
+    return _paginated_get(url, params, headers=headers)
+
+
 def fetch_playlist_items(api_key: str, playlist_id: str) -> list[dict[str, Any]]:
     """Fetch all items in a public playlist using an API key.
 
@@ -56,22 +68,7 @@ def fetch_playlist_items(api_key: str, playlist_id: str) -> list[dict[str, Any]]
         "key": api_key,
         "maxResults": 50,
     }
-
-    items: list[dict[str, Any]] = []
-    page_token: str | None = None
-
-    while True:
-        if page_token:
-            params["pageToken"] = page_token
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        items.extend(data.get("items", []))
-        page_token = data.get("nextPageToken")
-        if not page_token:
-            break
-
-    return items
+    return _paginated_get(url, params)
 
 
 def fetch_video_details(
