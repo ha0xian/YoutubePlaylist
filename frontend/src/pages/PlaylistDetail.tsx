@@ -7,7 +7,7 @@ export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const playlist = playlists.find((pl) => pl.id === id)
+  const playlist = playlists.find((pl) => pl.id === Number(id))
 
   if (!playlist) {
     return (
@@ -25,7 +25,7 @@ export default function PlaylistDetail() {
     )
   }
 
-  const videos = getVideosForPlaylist(playlist.id)
+  const videos = getVideosForPlaylist(playlist.youtubePlaylistId)
 
   return (
     <div className="min-h-screen bg-[#0f0f0f]">

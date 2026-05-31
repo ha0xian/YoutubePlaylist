@@ -17,8 +17,8 @@ export default function VideoListItem({ video }: VideoListItemProps) {
   return (
     <div
       onClick={() => {
-        localStorage.setItem('youtube-video-id', video.id)
-        navigate(`/watch/${video.id}`)
+        localStorage.setItem('youtube-video-id', video.youtubeVideoId)
+        navigate(`/watch/${video.youtubeVideoId}`)
       }}
       className="flex gap-3 p-3 hover:bg-[#2a2a2a]/50 cursor-pointer transition-colors"
     >
