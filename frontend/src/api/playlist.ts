@@ -102,7 +102,7 @@ export async function hidePlaylist(token: string, id: number): Promise<void> {
 export async function unlinkPlaylist(token: string, id: number): Promise<void> {
   await authFetch<unknown>(
     `/api/playlists/${id}/unlink/`,
-    { method: 'DELETE' },
+    { method: 'POST' },
     token,
   )
 }
@@ -110,7 +110,7 @@ export async function unlinkPlaylist(token: string, id: number): Promise<void> {
 /** Fetch a saved note for a given video. */
 export async function getVideoNote(token: string, videoId: number): Promise<VideoNote> {
   return authFetch<VideoNote>(
-    `/api/videos/${videoId}/note/`,
+    `/api/notes/${videoId}/`,
     { method: 'GET' },
     token,
   )
@@ -123,11 +123,20 @@ export async function saveVideoNote(
   bodyMarkdown: string,
 ): Promise<VideoNote> {
   return authFetch<VideoNote>(
-    `/api/videos/${videoId}/note/`,
+    `/api/notes/${videoId}/`,
     {
       method: 'PUT',
       body: JSON.stringify({ body_markdown: bodyMarkdown }),
     },
+    token,
+  )
+}
+
+/** Unhide a playlist (restores it to the default list view). */
+export async function unhidePlaylist(token: string, id: number): Promise<void> {
+  await authFetch<unknown>(
+    `/api/playlists/${id}/unhide/`,
+    { method: 'POST' },
     token,
   )
 }
