@@ -74,6 +74,39 @@ def fetch_playlist_items(api_key: str, playlist_id: str) -> list[dict[str, Any]]
     return items
 
 
+def fetch_playlist_items_with_token(
+    access_token: str, playlist_id: str
+) -> list[dict[str, Any]]:
+    """Fetch all items in a playlist using an OAuth access token.
+
+    GET https://www.googleapis.com/youtube/v3/playlistItems
+    Paginates through all pages.
+    """
+    url = f"{YOUTUBE_API_BASE}/playlistItems"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    params: dict[str, Any] = {
+        "part": "snippet,contentDetails",
+        "playlistId": playlist_id,
+        "maxResults": 50,
+    }
+
+    items: list[dict[str, Any]] = []
+    page_token: str | None = None
+
+    while True:
+        if page_token:
+            params["pageToken"] = page_token
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        items.extend(data.get("items", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+
+    return items
+
+
 def fetch_video_details(
     api_key: str, video_ids: list[str]
 ) -> list[dict[str, Any]]:

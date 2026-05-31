@@ -42,6 +42,8 @@ class Playlist(models.Model):
         choices=SourceType.choices,
     )
     is_deleted = models.BooleanField(default=False)
+    is_hidden = models.BooleanField(default=False)
+    is_unlinked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -50,6 +52,30 @@ class Playlist(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class VideoNote(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='video_notes',
+    )
+    video = models.ForeignKey(
+        'Video',
+        on_delete=models.CASCADE,
+        related_name='notes',
+    )
+    body_markdown = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'video')
+        verbose_name = 'Video Note'
+        verbose_name_plural = 'Video Notes'
+
+    def __str__(self):
+        return f"Note for video {self.video_id} by {self.user.username}"
 
 
 class Video(models.Model):

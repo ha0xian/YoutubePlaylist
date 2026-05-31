@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Playlist, Video, YouTubeOAuthToken
+from .models import Playlist, Video, VideoNote, YouTubeOAuthToken
 
 
 @admin.register(YouTubeOAuthToken)
@@ -45,8 +45,8 @@ class VideoInline(admin.TabularInline):
 
 @admin.register(Playlist)
 class PlaylistAdmin(admin.ModelAdmin):
-    list_display = ['title', 'user', 'source_type', 'video_count', 'is_deleted', 'created_at']
-    list_filter = ['source_type', 'is_deleted']
+    list_display = ['title', 'user', 'source_type', 'video_count', 'is_hidden', 'is_unlinked', 'is_deleted', 'created_at']
+    list_filter = ['source_type', 'is_hidden', 'is_unlinked', 'is_deleted']
     search_fields = ['title', 'channel_title', 'user__username']
     inlines = [VideoInline]
 
@@ -58,3 +58,9 @@ class VideoAdmin(admin.ModelAdmin):
     search_fields = ['title', 'youtube_video_id', 'playlist__title']
     readonly_fields = ['youtube_video_id', 'title', 'channel_title', 'duration', 'thumbnail_url',
                        'published_at', 'view_count', 'position']
+
+
+@admin.register(VideoNote)
+class VideoNoteAdmin(admin.ModelAdmin):
+    list_display = ['video', 'user', 'updated_at']
+    search_fields = ['user__username', 'video__title']
