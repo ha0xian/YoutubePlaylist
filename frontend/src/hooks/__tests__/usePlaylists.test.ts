@@ -2,29 +2,37 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { usePlaylists } from '../usePlaylists'
 import { useAuth } from '../../auth/useAuth'
-import type { Playlist } from '../../types/playlist'
 
 vi.mock('../../auth/useAuth', () => ({
   useAuth: vi.fn(),
 }))
 
-const mockPlaylist: Playlist = {
+// Snake-case mock data matching backend serializer output
+const mockPlaylistRaw = {
   id: 1,
-  youtubePlaylistId: 'PL_test',
+  youtube_playlist_id: 'PL_test',
   title: 'Test Playlist',
-  channelTitle: 'Test Channel',
-  thumbnailUrl: 'https://example.com/thumb.jpg',
-  videoCount: 5,
+  channel_title: 'Test Channel',
+  thumbnail_url: 'https://example.com/thumb.jpg',
+  video_count: 5,
   description: 'A test playlist',
-  publishedAt: '2026-01-01T00:00:00Z',
-  sourceType: 'url',
-  isHidden: false,
-  isUnlinked: false,
-  createdAt: '2026-01-01T00:00:00Z',
+  published_at: '2026-01-01T00:00:00Z',
+  source_type: 'url' as const,
+  is_hidden: false,
+  is_unlinked: false,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
 const mockedUseAuth = vi.mocked(useAuth)
-const defaultAuth = { token: 'test-token-123', user: null, isLoading: false, isAuthenticated: true, login: vi.fn(), register: vi.fn(), logout: vi.fn() }
+const defaultAuth = {
+  token: 'test-token-123',
+  user: null,
+  isLoading: false,
+  isAuthenticated: true,
+  login: vi.fn(),
+  register: vi.fn(),
+  logout: vi.fn(),
+}
 
 beforeEach(() => {
   vi.restoreAllMocks()
@@ -36,8 +44,8 @@ describe('usePlaylists', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [mockPlaylist],
-      text: async () => JSON.stringify([mockPlaylist]),
+      json: async () => [mockPlaylistRaw],
+      text: async () => JSON.stringify([mockPlaylistRaw]),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
@@ -74,7 +82,15 @@ describe('usePlaylists', () => {
   })
 
   it('sets error when not authenticated', async () => {
-    mockedUseAuth.mockReturnValue({ token: null, user: null, isLoading: false, isAuthenticated: false, login: vi.fn(), register: vi.fn(), logout: vi.fn() })
+    mockedUseAuth.mockReturnValue({
+      token: null,
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+    })
 
     const { result } = renderHook(() => usePlaylists())
 
@@ -89,8 +105,8 @@ describe('usePlaylists', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [mockPlaylist],
-      text: async () => JSON.stringify([mockPlaylist]),
+      json: async () => [mockPlaylistRaw],
+      text: async () => JSON.stringify([mockPlaylistRaw]),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
@@ -100,11 +116,13 @@ describe('usePlaylists', () => {
       expect(result.current.isLoading).toBe(false)
     })
 
+    const refreshedRaw = { ...mockPlaylistRaw, id: 2, title: 'Refreshed Playlist' }
+
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [{ ...mockPlaylist, id: 2, title: 'Refreshed Playlist' }],
-      text: async () => JSON.stringify([{ ...mockPlaylist, id: 2, title: 'Refreshed Playlist' }]),
+      json: async () => [refreshedRaw],
+      text: async () => JSON.stringify([refreshedRaw]),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
@@ -116,26 +134,29 @@ describe('usePlaylists', () => {
   })
 
   it('linkByUrl sends the URL and refreshes', async () => {
+    // First call: initial fetch (getPlaylists)
+    // Second call: linkPlaylistByUrl
+    // Third call: refresh (getPlaylists again)
     vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => [mockPlaylist],
-        text: async () => JSON.stringify([mockPlaylist]),
+        json: async () => [mockPlaylistRaw],
+        text: async () => JSON.stringify([mockPlaylistRaw]),
         headers: new Headers({ 'Content-Type': 'application/json' }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => mockPlaylist,
-        text: async () => JSON.stringify(mockPlaylist),
+        json: async () => mockPlaylistRaw,
+        text: async () => JSON.stringify(mockPlaylistRaw),
         headers: new Headers({ 'Content-Type': 'application/json' }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => [mockPlaylist],
-        text: async () => JSON.stringify([mockPlaylist]),
+        json: async () => [mockPlaylistRaw],
+        text: async () => JSON.stringify([mockPlaylistRaw]),
         headers: new Headers({ 'Content-Type': 'application/json' }),
       } as Response)
 

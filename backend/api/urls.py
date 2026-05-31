@@ -20,6 +20,11 @@ urlpatterns = [
         views.DisconnectYouTubeView.as_view(),
         name="youtube-disconnect",
     ),
+    path(
+        "youtube/status/",
+        views.YouTubeStatusView.as_view(),
+        name="youtube-status",
+    ),
     # Playlist CRUD
     path("playlists/", views.PlaylistListView.as_view(), name="playlist-list"),
     path(
@@ -46,6 +51,11 @@ urlpatterns = [
         "playlists/<int:pk>/unlink/",
         views.UnlinkPlaylistView.as_view(),
         name="playlist-unlink",
+    ),
+    path(
+        "playlists/<int:pk>/show/",
+        views.ShowPlaylistView.as_view(),
+        name="playlist-show",
     ),
     # Video notes
     path("notes/<int:video_id>/", views.VideoNoteView.as_view(), name="video-note"),

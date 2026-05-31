@@ -4,6 +4,8 @@ import AuthPage from './pages/AuthPage'
 import PlaylistBrowser from './pages/PlaylistBrowser'
 import PlaylistDetail from './pages/PlaylistDetail'
 import WatchPage from './pages/WatchPage'
+import HiddenPlaylists from './pages/HiddenPlaylists'
+import YouTubeCallbackHandler from './components/YouTubeCallbackHandler'
 import './index.css'
 
 function App() {
@@ -15,6 +17,8 @@ function App() {
         <Route path="/" element={<PlaylistBrowser />} />
         <Route path="/playlist/:id" element={<PlaylistDetail />} />
         <Route path="/watch/:videoId" element={<WatchPage />} />
+        <Route path="/playlists/hidden" element={<HiddenPlaylists />} />
+        <Route path="/youtube/callback" element={<YouTubeCallbackHandler />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

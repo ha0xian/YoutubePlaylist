@@ -1,13 +1,101 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { playlists, getVideosForPlaylist } from '../data/mockData'
+import { useAuth } from '../auth/useAuth'
+import { getPlaylistById, hidePlaylist, unlinkPlaylist } from '../api/playlist'
 import VideoListItem from '../components/VideoListItem'
 import UserMenu from '../components/UserMenu'
+import type { Playlist } from '../types/playlist'
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>()
+  const { token } = useAuth()
   const navigate = useNavigate()
 
-  const playlist = playlists.find((pl) => pl.id === Number(id))
+  const [playlist, setPlaylist] = useState<Playlist | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token || !id) return
+    const t: string = token
+
+    let cancelled = false
+
+    async function fetchData() {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const data = await getPlaylistById(t, Number(id))
+        if (!cancelled) setPlaylist(data)
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load playlist')
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [token, id])
+
+  const handleHide = useCallback(async () => {
+    if (!token || !playlist) return
+    const t: string = token
+    setActionInProgress('hide')
+    try {
+      await hidePlaylist(t, playlist.id)
+      navigate('/', { replace: true })
+    } catch {
+      setError('Failed to hide playlist')
+    } finally {
+      setActionInProgress(null)
+    }
+  }, [token, playlist, navigate])
+
+  const handleUnlink = useCallback(async () => {
+    if (!token || !playlist) return
+    const t: string = token
+    setActionInProgress('unlink')
+    try {
+      await unlinkPlaylist(t, playlist.id)
+      navigate('/', { replace: true })
+    } catch {
+      setError('Failed to unlink playlist')
+    } finally {
+      setActionInProgress(null)
+    }
+  }, [token, playlist, navigate])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center text-sm text-[#999]">
+        Loading playlist...
+      </div>
+    )
+  }
+
+  if (error && !playlist) {
+    return (
+      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-white mb-2">Playlist not found</h2>
+          <p className="text-sm text-[#ff6b6b] mb-4">{error}</p>
+          <button
+            onClick={() => navigate('/')}
+            className="text-sm text-[#6cb6ff] hover:text-white transition-colors cursor-pointer bg-transparent border-none"
+          >
+            Back to all playlists
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!playlist) {
     return (
@@ -24,8 +112,6 @@ export default function PlaylistDetail() {
       </div>
     )
   }
-
-  const videos = getVideosForPlaylist(playlist.youtubePlaylistId)
 
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
@@ -48,7 +134,28 @@ export default function PlaylistDetail() {
               </p>
             </div>
           </div>
-          <UserMenu />
+          <div className="flex items-center gap-2">
+            {error && (
+              <span className="text-xs text-[#ff6b6b]">{error}</span>
+            )}
+            <button
+              type="button"
+              onClick={handleHide}
+              disabled={actionInProgress === 'hide'}
+              className="rounded-md border border-[#444] bg-[#1a1a1a] px-3 py-1.5 text-xs font-semibold text-[#e0e0e0] transition-colors hover:border-[#666] disabled:opacity-50 cursor-pointer"
+            >
+              {actionInProgress === 'hide' ? 'Hiding...' : 'Hide playlist'}
+            </button>
+            <button
+              type="button"
+              onClick={handleUnlink}
+              disabled={actionInProgress === 'unlink'}
+              className="rounded-md border border-[#441111] bg-[#1a1a1a] px-3 py-1.5 text-xs font-semibold text-[#ff6b6b] transition-colors hover:border-[#cc0000] disabled:opacity-50 cursor-pointer"
+            >
+              {actionInProgress === 'unlink' ? 'Unlinking...' : 'Unlink playlist'}
+            </button>
+            <UserMenu />
+          </div>
         </div>
         {playlist.description && (
           <p className="text-sm text-[#999] px-6 pb-4">{playlist.description}</p>
@@ -56,9 +163,15 @@ export default function PlaylistDetail() {
       </header>
 
       <main className="flex flex-col divide-y divide-[#333]">
-        {videos.map((video) => (
-          <VideoListItem key={video.id} video={video} />
-        ))}
+        {playlist.videos && playlist.videos.length > 0 ? (
+          playlist.videos.map((video) => (
+            <VideoListItem key={video.id} video={video} />
+          ))
+        ) : (
+          <div className="p-6 text-center text-sm text-[#666]">
+            No videos in this playlist.
+          </div>
+        )}
       </main>
     </div>
   )

@@ -3,38 +3,40 @@ import {
   getYouTubeAuthUrl,
   sendOAuthCode,
   disconnectYouTube,
+  getYouTubeStatus,
   getPlaylists,
   getHiddenPlaylists,
   getPlaylistById,
   linkPlaylistByUrl,
   hidePlaylist,
   unlinkPlaylist,
+  showPlaylist,
   getVideoNote,
   saveVideoNote,
 } from '../playlist'
-import type { Playlist, VideoNote } from '../../types/playlist'
 
 const TOKEN = 'test-token-123'
 
-const mockPlaylist: Playlist = {
+// Snake-case mock data matching backend serializer output
+const mockPlaylistRaw = {
   id: 1,
-  youtubePlaylistId: 'PL_test',
+  youtube_playlist_id: 'PL_test',
   title: 'Test Playlist',
-  channelTitle: 'Test Channel',
-  thumbnailUrl: 'https://example.com/thumb.jpg',
-  videoCount: 5,
+  channel_title: 'Test Channel',
+  thumbnail_url: 'https://example.com/thumb.jpg',
+  video_count: 5,
   description: 'A test playlist',
-  publishedAt: '2026-01-01T00:00:00Z',
-  sourceType: 'url',
-  isHidden: false,
-  isUnlinked: false,
-  createdAt: '2026-01-01T00:00:00Z',
+  published_at: '2026-01-01T00:00:00Z',
+  source_type: 'url' as const,
+  is_hidden: false,
+  is_unlinked: false,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
-const mockVideoNote: VideoNote = {
-  videoId: 42,
-  bodyMarkdown: '# My note',
-  updatedAt: '2026-05-01T12:00:00Z',
+const mockVideoNoteRaw = {
+  video_id: 42,
+  body_markdown: '# My note',
+  updated_at: '2026-05-01T12:00:00Z',
 }
 
 beforeEach(() => {
@@ -70,18 +72,35 @@ describe('getYouTubeAuthUrl', () => {
 })
 
 describe('sendOAuthCode', () => {
-  it('sends the code and returns playlists', async () => {
+  it('sends the code and returns transformed playlists', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ playlists: [mockPlaylist], count: 1 }),
-      text: async () => JSON.stringify({ playlists: [mockPlaylist], count: 1 }),
+      json: async () => ({ playlists: [mockPlaylistRaw], count: 1 }),
+      text: async () => JSON.stringify({ playlists: [mockPlaylistRaw], count: 1 }),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
     const result = await sendOAuthCode(TOKEN, 'auth-code-abc')
     expect(result.playlists).toHaveLength(1)
+    expect(result.playlists[0].title).toBe('Test Playlist')
+    expect(result.playlists[0].sourceType).toBe('url')
     expect(result.count).toBe(1)
+  })
+})
+
+describe('getYouTubeStatus', () => {
+  it('returns connection status', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ connected: true }),
+      text: async () => JSON.stringify({ connected: true }),
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+    } as Response)
+
+    const result = await getYouTubeStatus(TOKEN)
+    expect(result.connected).toBe(true)
   })
 })
 
@@ -100,28 +119,30 @@ describe('disconnectYouTube', () => {
 })
 
 describe('getPlaylists', () => {
-  it('returns an array of playlists', async () => {
+  it('returns transformed playlists from backend', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [mockPlaylist],
-      text: async () => JSON.stringify([mockPlaylist]),
+      json: async () => [mockPlaylistRaw],
+      text: async () => JSON.stringify([mockPlaylistRaw]),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
     const result = await getPlaylists(TOKEN)
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Test Playlist')
+    expect(result[0].sourceType).toBe('url')
+    expect(result[0].youtubePlaylistId).toBe('PL_test')
   })
 })
 
 describe('getHiddenPlaylists', () => {
-  it('returns hidden playlists', async () => {
+  it('returns transformed hidden playlists', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => [{ ...mockPlaylist, isHidden: true }],
-      text: async () => JSON.stringify([{ ...mockPlaylist, isHidden: true }]),
+      json: async () => [{ ...mockPlaylistRaw, is_hidden: true }],
+      text: async () => JSON.stringify([{ ...mockPlaylistRaw, is_hidden: true }]),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
@@ -131,27 +152,28 @@ describe('getHiddenPlaylists', () => {
 })
 
 describe('getPlaylistById', () => {
-  it('returns a single playlist', async () => {
+  it('returns a transformed single playlist', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => mockPlaylist,
-      text: async () => JSON.stringify(mockPlaylist),
+      json: async () => ({ ...mockPlaylistRaw, videos: [] }),
+      text: async () => JSON.stringify({ ...mockPlaylistRaw, videos: [] }),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
     const result = await getPlaylistById(TOKEN, 1)
     expect(result.id).toBe(1)
+    expect(result.videos).toEqual([])
   })
 })
 
 describe('linkPlaylistByUrl', () => {
-  it('sends a URL and returns a playlist', async () => {
+  it('sends a URL and returns a transformed playlist', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => mockPlaylist,
-      text: async () => JSON.stringify(mockPlaylist),
+      json: async () => mockPlaylistRaw,
+      text: async () => JSON.stringify(mockPlaylistRaw),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
@@ -181,10 +203,10 @@ describe('hidePlaylist', () => {
 })
 
 describe('unlinkPlaylist', () => {
-  it('sends a DELETE and resolves', async () => {
+  it('sends a POST and resolves', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      status: 204,
+      status: 200,
       json: async () => null,
       text: async () => '',
       headers: new Headers({}),
@@ -194,28 +216,43 @@ describe('unlinkPlaylist', () => {
   })
 })
 
-describe('getVideoNote', () => {
-  it('returns a video note', async () => {
+describe('showPlaylist', () => {
+  it('sends a POST and resolves', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => mockVideoNote,
-      text: async () => JSON.stringify(mockVideoNote),
+      json: async () => null,
+      text: async () => '',
+      headers: new Headers({}),
+    } as Response)
+
+    await expect(showPlaylist(TOKEN, 1)).resolves.toBeUndefined()
+  })
+})
+
+describe('getVideoNote', () => {
+  it('returns a transformed video note', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockVideoNoteRaw,
+      text: async () => JSON.stringify(mockVideoNoteRaw),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 
     const result = await getVideoNote(TOKEN, 42)
     expect(result.bodyMarkdown).toBe('# My note')
+    expect(result.videoId).toBe(42)
   })
 })
 
 describe('saveVideoNote', () => {
-  it('sends body_markdown and returns the saved note', async () => {
+  it('sends body_markdown and returns the saved transformed note', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => mockVideoNote,
-      text: async () => JSON.stringify(mockVideoNote),
+      json: async () => mockVideoNoteRaw,
+      text: async () => JSON.stringify(mockVideoNoteRaw),
       headers: new Headers({ 'Content-Type': 'application/json' }),
     } as Response)
 

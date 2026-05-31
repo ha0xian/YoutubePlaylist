@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../auth/useAuth'
-import { getPlaylists, linkPlaylistByUrl, hidePlaylist, unlinkPlaylist, disconnectYouTube } from '../api/playlist'
+import {
+  getPlaylists,
+  getPlaylistById,
+  getHiddenPlaylists,
+  linkPlaylistByUrl,
+  hidePlaylist,
+  showPlaylist,
+  unlinkPlaylist,
+  disconnectYouTube,
+} from '../api/playlist'
 import type { Playlist } from '../types/playlist'
 
 export function usePlaylists() {
@@ -57,6 +66,19 @@ export function usePlaylists() {
     }
   }, [token])
 
+  const fetchById = useCallback(
+    async (id: number): Promise<Playlist> => {
+      if (!token) throw new Error('Not authenticated')
+      return getPlaylistById(token, id)
+    },
+    [token],
+  )
+
+  const fetchHidden = useCallback(async (): Promise<Playlist[]> => {
+    if (!token) return []
+    return getHiddenPlaylists(token)
+  }, [token])
+
   const linkByUrl = useCallback(
     async (url: string) => {
       if (!token) throw new Error('Not authenticated')
@@ -84,6 +106,14 @@ export function usePlaylists() {
     [token, refresh],
   )
 
+  const restore = useCallback(
+    async (id: number) => {
+      if (!token) throw new Error('Not authenticated')
+      await showPlaylist(token, id)
+    },
+    [token],
+  )
+
   const disconnect = useCallback(async () => {
     if (!token) throw new Error('Not authenticated')
     await disconnectYouTube(token)
@@ -95,9 +125,12 @@ export function usePlaylists() {
     isLoading,
     error,
     refresh,
+    fetchById,
+    fetchHidden,
     linkByUrl,
     hide,
     unlink,
+    restore,
     disconnectYouTube: disconnect,
   }
 }

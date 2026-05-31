@@ -14,15 +14,28 @@ export default function VideoListItem({ video }: VideoListItemProps) {
       ? `${(video.viewCount / 1_000).toFixed(0)}K views`
       : `${video.viewCount} views`
 
+  // Security finding #6: use youtubeVideoId (not the DB primary key id)
+  const handleClick = () => {
+    localStorage.setItem('youtube-video-id', video.youtubeVideoId)
+    localStorage.setItem('video-db-id', String(video.id))
+    navigate(`/watch/${video.youtubeVideoId}`)
+  }
+
   return (
     <div
-      onClick={() => {
-        localStorage.setItem('youtube-video-id', video.youtubeVideoId)
-        navigate(`/watch/${video.youtubeVideoId}`)
+      onClick={handleClick}
+      className={`flex gap-3 p-3 hover:bg-[#2a2a2a]/50 cursor-pointer transition-colors ${video.isRemoved ? 'opacity-50' : ''}`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleClick()
+        }
       }}
-      className="flex gap-3 p-3 hover:bg-[#2a2a2a]/50 cursor-pointer transition-colors"
+      aria-label={`${video.title}${video.isRemoved ? ' (removed from YouTube)' : ''}`}
     >
-      <div style={{ position: 'relative' }} className="shrink-0">
+      <div className="relative shrink-0">
         <img
           src={video.thumbnail.url}
           alt={video.title}
@@ -33,9 +46,23 @@ export default function VideoListItem({ video }: VideoListItemProps) {
         <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded font-mono">
           {video.duration}
         </span>
+        {video.isRemoved && (
+          <span
+            className="absolute top-1 left-1 bg-[#cc0000]/90 text-white text-xs px-1.5 py-0.5 rounded font-medium"
+            role="status"
+          >
+            Removed
+          </span>
+        )}
       </div>
       <div className="flex flex-col justify-between min-w-0">
-        <h3 className="text-sm font-medium text-white line-clamp-2 leading-snug">
+        <h3
+          className={`text-sm font-medium line-clamp-2 leading-snug ${
+            video.isRemoved
+              ? 'text-[#888] line-through'
+              : 'text-white'
+          }`}
+        >
           {video.title}
         </h3>
         <p className="text-xs text-[#999] mt-1">{video.channelTitle}</p>

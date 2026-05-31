@@ -160,6 +160,16 @@ class DisconnectYouTubeView(APIView):
         return Response({"detail": "YouTube account disconnected."})
 
 
+class YouTubeStatusView(APIView):
+    """GET /api/youtube/status/ -- return whether the user has a linked YouTube account."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        has_token = YouTubeOAuthToken.objects.filter(user=request.user).exists()
+        return Response({"connected": has_token})
+
+
 # ---------------------------------------------------------------------------
 # Playlist CRUD
 # ---------------------------------------------------------------------------
@@ -358,6 +368,23 @@ class UnlinkPlaylistView(APIView):
         playlist.is_unlinked = True
         playlist.save(update_fields=["is_unlinked"])
         return Response({"detail": "Playlist unlinked."})
+
+
+class ShowPlaylistView(APIView):
+    """POST /api/playlists/<id>/show/ -- unhide/restore a hidden playlist."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        playlist = get_object_or_404(
+            Playlist,
+            pk=pk,
+            user=request.user,
+            is_deleted=False,
+        )
+        playlist.is_hidden = False
+        playlist.save(update_fields=["is_hidden"])
+        return Response({"detail": "Playlist restored."})
 
 
 # ---------------------------------------------------------------------------
