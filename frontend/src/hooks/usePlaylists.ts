@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../auth/useAuth'
-import { getPlaylists, linkPlaylistByUrl, hidePlaylist, unlinkPlaylist, disconnectYouTube } from '../api/playlist'
+import { getPlaylists, linkPlaylistByUrl, hidePlaylist, unhidePlaylist, unlinkPlaylist, disconnectYouTube } from '../api/playlist'
 import type { Playlist } from '../types/playlist'
 
 export function usePlaylists() {
@@ -75,6 +75,15 @@ export function usePlaylists() {
     [token, refresh],
   )
 
+  const unhide = useCallback(
+    async (id: number) => {
+      if (!token) throw new Error('Not authenticated')
+      await unhidePlaylist(token, id)
+      await refresh()
+    },
+    [token, refresh],
+  )
+
   const unlink = useCallback(
     async (id: number) => {
       if (!token) throw new Error('Not authenticated')
@@ -97,6 +106,7 @@ export function usePlaylists() {
     refresh,
     linkByUrl,
     hide,
+    unhide,
     unlink,
     disconnectYouTube: disconnect,
   }

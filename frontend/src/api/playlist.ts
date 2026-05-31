@@ -98,6 +98,15 @@ export async function hidePlaylist(token: string, id: number): Promise<void> {
   )
 }
 
+/** Unhide a playlist (restores it to the default list view). */
+export async function unhidePlaylist(token: string, id: number): Promise<void> {
+  await authFetch<unknown>(
+    `/api/playlists/${id}/unhide/`,
+    { method: 'POST' },
+    token,
+  )
+}
+
 /** Unlink (permanently remove) a playlist and its videos. */
 export async function unlinkPlaylist(token: string, id: number): Promise<void> {
   await authFetch<unknown>(
