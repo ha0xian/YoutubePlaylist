@@ -34,7 +34,7 @@ class YouTubeOAuthTokenAdmin(admin.ModelAdmin):
 class VideoInline(admin.TabularInline):
     model = Video
     extra = 0
-    fields = ['youtube_video_id', 'title', 'position', 'duration', 'is_deleted']
+    fields = ['youtube_video_id', 'title', 'position', 'duration', 'is_deleted', 'is_removed']
     readonly_fields = ['youtube_video_id', 'title', 'position', 'duration']
     can_delete = False
     show_change_link = False
@@ -53,8 +53,8 @@ class PlaylistAdmin(admin.ModelAdmin):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ['title', 'playlist', 'position', 'duration', 'is_deleted']
-    list_filter = ['is_deleted']
+    list_display = ['title', 'playlist', 'position', 'duration', 'is_deleted', 'is_removed']
+    list_filter = ['is_deleted', 'is_removed']
     search_fields = ['title', 'youtube_video_id', 'playlist__title']
     readonly_fields = ['youtube_video_id', 'title', 'channel_title', 'duration', 'thumbnail_url',
                        'published_at', 'view_count', 'position']

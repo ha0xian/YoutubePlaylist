@@ -93,6 +93,7 @@ class Video(models.Model):
     view_count = models.BigIntegerField(default=0)
     position = models.IntegerField(default=0)
     is_deleted = models.BooleanField(default=False)
+    is_removed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
