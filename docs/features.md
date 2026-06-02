@@ -1,52 +1,62 @@
 # Features: YouTube Playlist Viewer
 
-Full-stack app (React + TypeScript, Django + DRF) for browsing YouTube playlists, watching videos, and taking per-user notes.
+Current feature inventory for the `master` branch. This file distinguishes what is actually implemented on `master` from work that exists only in open GitHub pull requests.
 
-## ✅ Implemented
+## Implemented On Master
 
-- **User Authentication** — register, login, logout, current-user endpoint via DRF TokenAuthentication (source: [views.py:18-21](backend/api/views.py#L18-L21), [AuthProvider.tsx](frontend/src/auth/AuthProvider.tsx))
-- **YouTube OAuth Integration** — connect/disconnect YouTube account via OAuth 2.0, with encrypted token storage (source: [views.py:22-71](backend/api/views.py#L22-L71), [encryption.py](backend/api/encryption.py))
-- **YouTube API Client** — fetch playlists, playlist items, video details from YouTube Data API v3 with pagination (source: [youtube_service.py](backend/api/youtube_service.py))
-- **Playlist CRUD REST API** — list, detail, and manage playlists scoped to authenticated user (source: [views.py:73-157](backend/api/views.py#L73-L157))
-- **Playlist URL Import** — paste a public YouTube playlist URL to import playlist + all video metadata (source: [views.py:90-133](backend/api/views.py#L90-L133), [playlist.ts:74-90](frontend/src/api/playlist.ts#L74-L90))
-- **Playlist Hide / Unhide** — hide playlists from main view, browse hidden list, restore to visible (source: [views.py:135-149](backend/api/views.py#L135-L149), [playlist.ts:93-142](frontend/src/api/playlist.ts#L93-L142))
-- **Playlist Unlink** — dissociate a playlist from account without deleting cached data (source: [views.py:151-157](backend/api/views.py#L151-L157))
-- **Per-User Video Notes (Backend)** — create/update/read markdown notes per user per video, persisted in DB (source: [views.py:159-171](backend/api/views.py#L159-L171), [models.py:57-78](backend/api/models.py#L57-L78))
-- **OAuth Token Encryption** — Fernet encryption for YouTube OAuth access/refresh tokens at rest (source: [encryption.py](backend/api/encryption.py))
-- **Django Admin** — admin panel for Playlist, Video, VideoNote, YouTubeOAuthToken with encrypted token display (source: [admin.py](backend/api/admin.py))
-- **Video Soft-Delete** — `is_removed` flag on Video model for videos removed from source YouTube playlist (source: [models.py:96](backend/api/models.py#L96))
-- **Multi-User Support** — all data (playlists, videos, notes, OAuth tokens) scoped per user account (source: [models.py](backend/api/models.py))
-- **Protected Routes (Frontend)** — authenticated-only page access with redirect to login, token persistence in localStorage (source: [ProtectedRoute.tsx](frontend/src/components/ProtectedRoute.tsx), [AuthProvider.tsx](frontend/src/auth/AuthProvider.tsx))
-- **YouTube Video Player** — embedded iframe player with URL/video ID input and localStorage persistence (source: [YouTubePlayer.tsx](frontend/src/components/YouTubePlayer.tsx))
-- **Markdown Notes Editor** — edit/preview toggle with `marked` rendering, localStorage-backed (source: [MarkdownNotes.tsx](frontend/src/components/MarkdownNotes.tsx))
-- **Playlist Browser** — grid layout of playlist cards with thumbnail, title, channel, video count (source: [PlaylistBrowser.tsx](frontend/src/pages/PlaylistBrowser.tsx))
-- **Playlist Detail Page** — video list with back-button navigation (source: [PlaylistDetail.tsx](frontend/src/pages/PlaylistDetail.tsx))
-- **Watch Page** — 70/30 split layout with YouTube player + notes sidebar (source: [WatchPage.tsx](frontend/src/pages/WatchPage.tsx))
-- **Dark Theme UI** — dark color scheme with red accent (#cc0000) (source: [WatchPage.tsx](frontend/src/pages/WatchPage.tsx), [App.tsx](frontend/src/App.tsx))
-- **TypeScript API Types** — typed interfaces for Playlist, Video, VideoNote, auth responses (source: [playlist.ts](frontend/src/types/playlist.ts), [auth.ts](frontend/src/api/auth.ts))
-- **usePlaylists Hook** — reusable hook with linkByUrl, hide, unhide, unlink, disconnectYouTube actions (source: [usePlaylists.ts](frontend/src/hooks/usePlaylists.ts))
-- **API Client** — `authFetch` wrapper with token header injection and error parsing for all backend endpoints (source: [auth.ts:42-60](frontend/src/api/auth.ts#L42-L60), [playlist.ts](frontend/src/api/playlist.ts))
-- **Backend Test Suite** — model, encryption, OAuth, playlist CRUD, hide/unhide, and note tests (source: [tests.py](backend/api/tests.py))
-- **Token Disconnect on 401** — auto-clear session and redirect when backend returns unauthorized (source: [ProtectedRoute.tsx](frontend/src/components/ProtectedRoute.tsx))
-- **Duration Formatting** — ISO 8601 to human-readable string (e.g. PT1H2M3S → 1:02:03) (source: [youtube_service.py:171-203](backend/api/youtube_service.py#L171-L203))
+- **React + TypeScript + Vite frontend shell** -- frontend app routes are wired through React Router. Source: `frontend/src/App.tsx`, `frontend/package.json`
+- **Login and register pages** -- UI forms for username/password login and username/email/password registration. Source: `frontend/src/pages/AuthPage.tsx`
+- **Frontend auth API client** -- calls `/api/auth/login/`, `/api/auth/register/`, and `/api/auth/me/`. Source: `frontend/src/api/auth.ts`
+- **Auth provider with token persistence** -- stores the DRF token in `localStorage`, loads the current user, and clears the session if `/api/auth/me/` fails. Source: `frontend/src/auth/AuthProvider.tsx`, `frontend/src/auth/AuthContext.ts`
+- **Protected routes** -- playlist, detail, and watch pages require an authenticated frontend session and redirect unauthenticated users to `/login`. Source: `frontend/src/components/ProtectedRoute.tsx`, `frontend/src/App.tsx`
+- **User menu** -- displays username/email and provides a logout button. Source: `frontend/src/components/UserMenu.tsx`
+- **Mock playlist browser** -- displays playlist cards from local mock data in a responsive grid. Source: `frontend/src/pages/PlaylistBrowser.tsx`, `frontend/src/data/mockData.ts`, `frontend/src/components/PlaylistCard.tsx`
+- **Mock playlist detail page** -- shows a selected mock playlist and its videos, with browser-history back navigation. Source: `frontend/src/pages/PlaylistDetail.tsx`, `frontend/src/components/VideoListItem.tsx`
+- **Video list item UI** -- shows thumbnail, duration badge, title, channel, and formatted view count; stores selected video ID in `localStorage` before navigating to the watch page. Source: `frontend/src/components/VideoListItem.tsx`
+- **Watch page** -- 70/30 split layout with embedded YouTube player and notes sidebar. Source: `frontend/src/pages/WatchPage.tsx`
+- **YouTube player** -- embedded iframe player with URL/video ID input, Enter-to-load behavior, and `localStorage` persistence for the last video ID. Source: `frontend/src/components/YouTubePlayer.tsx`
+- **Markdown notes editor** -- edit/preview toggle using `marked`; notes are currently stored in `localStorage`. Source: `frontend/src/components/MarkdownNotes.tsx`
+- **Dark theme styling** -- current UI uses a dark color scheme with red accent styling. Source: `frontend/src/index.css`, `frontend/src/pages/*`, `frontend/src/components/*`
+- **Frontend playlist/video TypeScript types** -- local mock-data-oriented `Playlist`, `Video`, and `Thumbnail` interfaces. Source: `frontend/src/types/playlist.ts`
+- **Django + DRF backend scaffold** -- backend has Django, DRF, CORS, SQLite settings, and a root API endpoint returning a hello-world status response. Source: `backend/config/settings.py`, `backend/api/views.py`, `backend/api/urls.py`
+- **Project requirements documentation** -- requirements and YouTube API planning docs are present on `master`. Source: `docs/project-requirements.md`, `docs/plans/product/youtube-api-integration.md`, `docs/plans/specs/youtube-api-integration.md`
 
-## 🔄 In PR
+## Not Implemented On Master Yet
 
-- **PR #6** — [feat: API endpoints for YouTube OAuth, playlist CRUD, URL import, and video notes](https://github.com/ha0xian/YoutubePlaylist/pull/6) — status: **open** (current branch)
-- **PR #7** — [Slice 04: Frontend UI for YouTube link flow, playlist management, per-user notes, and theme toggle](https://github.com/ha0xian/YoutubePlaylist/pull/7) — status: **open**
-- **PR #5** — [feat: API client, types, and usePlaylists hook](https://github.com/ha0xian/YoutubePlaylist/pull/5) — status: **open**
-- **PR #4** — [feat: add YouTube API backend foundation (models, encryption, API client)](https://github.com/ha0xian/YoutubePlaylist/pull/4) — status: **open**
+- **Backend auth endpoints** -- frontend expects `/api/auth/login/`, `/api/auth/register/`, and `/api/auth/me/`, but committed `master` backend only exposes the root API endpoint.
+- **Backend user profile / UUID model** -- no committed backend models exist on `master`.
+- **DRF TokenAuthentication backend setup** -- frontend stores a token, but backend token auth is not committed on `master`.
+- **YouTube OAuth integration** -- no committed OAuth token model, encryption utility, OAuth views, or YouTube service exists on `master`.
+- **YouTube playlist import** -- no backend URL import endpoint or frontend import UI exists on `master`.
+- **Database-backed playlists/videos** -- playlist browser and detail pages still read from `frontend/src/data/mockData.ts`.
+- **Playlist hide/unhide/unlink/disconnect** -- not present on `master`.
+- **Per-user database notes** -- notes are still localStorage-backed on `master`; `/api/notes/` does not exist on committed backend.
+- **Removed-video UI** -- no `is_removed` handling, removed badge, dimmed styling, or removed-video warning exists on `master`.
+- **Theme toggle** -- dark theme exists, but no dark/light toggle or browser-persisted theme preference exists on `master`.
+- **Obsidian-style Enter markdown behavior** -- markdown preview exists, but headings do not auto-format on Enter in the editor.
+- **Frontend playlist API client and hooks** -- no committed `frontend/src/api/playlist.ts` or `frontend/src/hooks/usePlaylists.ts` exists on `master`.
+- **AI/Gemini analysis and chat** -- future/broader plan only.
+- **Search and filter polish** -- future/broader plan only.
+- **Manual playlist refresh/sync** -- future-only per requirements.
+- **Production CORS hardening** -- `CORS_ALLOW_ALL_ORIGINS = True` remains in backend settings.
 
-## 📋 To Be Implemented
+## Open GitHub PRs
 
-- **Wire Frontend Pages to API** — PlaylistBrowser and PlaylistDetail still use mock data instead of API hooks (source: [PlaylistBrowser.tsx:1](frontend/src/pages/PlaylistBrowser.tsx#L1), [PlaylistDetail.tsx:2](frontend/src/pages/PlaylistDetail.tsx#L2))
-- **Wire Notes to Backend API** — MarkdownNotes still uses localStorage instead of `/api/notes/` (source: [MarkdownNotes.tsx:4](frontend/src/components/MarkdownNotes.tsx#L4))
-- **Removed-Video UI** — badge, dimmed styling, and filter (All/Available/Removed) for videos with `is_removed` flag (source: [youtube-api-integration.md:37-39](docs/plans/product/youtube-api-integration.md#L37-L39))
-- **Theme Toggle (Dark/Light)** — UI toggle with persisted preference (source: [youtube-api-integration.md:55](docs/plans/product/youtube-api-integration.md#L55))
-- **Responsive Layout** — responsive playlist grid and video list (source: [youtube-api-integration.md:56](docs/plans/product/youtube-api-integration.md#L56))
-- **Manual Playlist Sync** — re-fetch playlist from YouTube, mark removed videos (source: [youtube-api-integration.md:41-42](docs/plans/product/youtube-api-integration.md#L41-L42))
-- **AI Video Analysis & Chat** — Gemini-powered video summary/key topics and stateless chat panel (source: [youtube-api-integration.md:72](docs/plans/product/youtube-api-integration.md#L72))
-- **Search & Filter** — playlist search by title/channel, video search within playlist, sort options (source: [youtube-api-integration.md:73](docs/plans/product/youtube-api-integration.md#L73))
-- **Account & Settings Page** — username, email, YouTube connection status, reconnect action (source: [frontend-feature-plan.html](plan/frontend-feature-plan.html) — Phase 8)
-- **Obsidian-Style Markdown Editing** — headings format on Enter keypress (source: [youtube-api-integration.md:31](docs/plans/product/youtube-api-integration.md#L31))
-- **CORS Configuration for Production** — restrict `CORS_ALLOW_ALL_ORIGINS` from wildcard (source: [settings.py:14](backend/config/settings.py#L14))
+All listed PRs are currently open and unmerged against `master`.
+
+- **PR #1** -- [feat: UserProfile model, UUID, and DRF TokenAuth config](https://github.com/ha0xian/YoutubePlaylist/pull/1) -- open, not merged
+- **PR #2** -- [feat: Auth endpoints - register, login, me, with tests](https://github.com/ha0xian/YoutubePlaylist/pull/2) -- open, not merged
+- **PR #3** -- [feat: Add uuid to AuthUser TypeScript interface](https://github.com/ha0xian/YoutubePlaylist/pull/3) -- open, not merged
+- **PR #4** -- [feat: add YouTube API backend foundation (models, encryption, API client)](https://github.com/ha0xian/YoutubePlaylist/pull/4) -- open, not merged
+- **PR #5** -- [feat: API client, types, and usePlaylists hook](https://github.com/ha0xian/YoutubePlaylist/pull/5) -- open, not merged
+- **PR #6** -- [feat: API endpoints for YouTube OAuth, playlist CRUD, URL import, and video notes](https://github.com/ha0xian/YoutubePlaylist/pull/6) -- open, not merged
+- **PR #7** -- [Slice 04: Frontend UI for YouTube link flow, playlist management, per-user notes, and theme toggle](https://github.com/ha0xian/YoutubePlaylist/pull/7) -- open, not merged
+
+## PR Feature Summary
+
+- **Auth backend is in PRs #1 and #2** -- UserProfile/UUID, DRF TokenAuthentication setup, register/login/me endpoints, and backend tests.
+- **Frontend UUID type update is in PR #3** -- adds `uuid` to the frontend `AuthUser` type.
+- **YouTube backend foundation is in PR #4** -- OAuth token model, Playlist/Video models, encryption helper, YouTube API service, admin updates, and backend tests.
+- **Frontend playlist API layer is in PR #5** -- playlist API client, updated playlist/video types, `usePlaylists` hook, and frontend tests.
+- **YouTube backend endpoints are in PR #6** -- OAuth flow endpoints, playlist list/detail/link/hide/unlink, disconnect, video notes, serializers, and tests.
+- **Frontend YouTube integration UI is in PR #7** -- OAuth button, playlist URL input, callback handler, hidden playlists page, theme toggle, backend-backed notes, removed-video UI, and tests.
