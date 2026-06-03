@@ -16,7 +16,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("username", "email", "password")
         extra_kwargs = {
             "password": {"write_only": True},
-            "email": {"required": True},
+            "email": {"required": True, "allow_blank": False},
         }
 
     def validate_username(self, value):
@@ -29,9 +29,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A user with that email already exists.")
         return value
 
-    def validate_password(self, value):
-        password_validation.validate_password(value)
-        return value
+    def validate(self, attrs):
+        temp_user = User(**attrs)
+        password_validation.validate_password(attrs["password"], user=temp_user)
+        return attrs
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
