@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { marked } from 'marked'
 
-const STORAGE_KEY = 'youtube-notes'
+const FALLBACK_KEY = 'youtube-notes'
 
-export default function MarkdownNotes() {
-  const [notes, setNotes] = useState(() => localStorage.getItem(STORAGE_KEY) || '')
+interface MarkdownNotesProps {
+  videoId?: string
+}
+
+export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
+  const storageKey = videoId ? `youtube-notes:${videoId}` : FALLBACK_KEY
+
+  const [notes, setNotes] = useState(() => localStorage.getItem(storageKey) || '')
   const [showPreview, setShowPreview] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, notes)
-  }, [notes])
+    localStorage.setItem(storageKey, notes)
+  }, [storageKey, notes])
 
   const renderedHtml = useCallback(() => {
     return { __html: marked.parse(notes) as string }

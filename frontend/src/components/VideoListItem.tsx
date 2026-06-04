@@ -3,9 +3,11 @@ import type { Video } from '../types/playlist'
 
 interface VideoListItemProps {
   video: Video
+  isSelected?: boolean
+  onSelect?: (video: Video) => void
 }
 
-export default function VideoListItem({ video }: VideoListItemProps) {
+export default function VideoListItem({ video, isSelected, onSelect }: VideoListItemProps) {
   const navigate = useNavigate()
 
   const views = video.viewCount >= 1_000_000
@@ -14,13 +16,23 @@ export default function VideoListItem({ video }: VideoListItemProps) {
       ? `${(video.viewCount / 1_000).toFixed(0)}K views`
       : `${video.viewCount} views`
 
+  const handleClick = () => {
+    if (onSelect) {
+      onSelect(video)
+    } else {
+      localStorage.setItem('youtube-video-id', video.youtubeVideoId)
+      navigate(`/watch/${video.youtubeVideoId}`)
+    }
+  }
+
   return (
     <div
-      onClick={() => {
-        localStorage.setItem('youtube-video-id', video.youtubeVideoId)
-        navigate(`/watch/${video.youtubeVideoId}`)
-      }}
-      className="flex gap-3 p-3 hover:bg-[#2a2a2a]/50 cursor-pointer transition-colors"
+      onClick={handleClick}
+      className={`flex gap-3 p-3 cursor-pointer transition-colors ${
+        isSelected
+          ? 'bg-[#2a2a2a] border-l-3 border-[#cc0000]'
+          : 'hover:bg-[#2a2a2a]/50 border-l-3 border-transparent'
+      }`}
     >
       <div style={{ position: 'relative' }} className="shrink-0">
         <img
