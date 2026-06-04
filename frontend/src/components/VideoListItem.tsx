@@ -17,14 +17,14 @@ export default function VideoListItem({ video }: VideoListItemProps) {
   return (
     <div
       onClick={() => {
-        localStorage.setItem('youtube-video-id', video.id)
-        navigate(`/watch/${video.id}`)
+        localStorage.setItem('youtube-video-id', video.youtubeVideoId)
+        navigate(`/watch/${video.youtubeVideoId}`)
       }}
       className="flex gap-3 p-3 hover:bg-[#2a2a2a]/50 cursor-pointer transition-colors"
     >
       <div style={{ position: 'relative' }} className="shrink-0">
         <img
-          src={video.thumbnail.url}
+          src={video.thumbnailUrl}
           alt={video.title}
           className="w-40 rounded-md object-cover"
           style={{ aspectRatio: '16/9' }}

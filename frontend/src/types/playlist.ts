@@ -1,25 +1,27 @@
-export interface Thumbnail {
-  url: string
-  width: number
-  height: number
-}
-
 export interface Video {
-  id: string
+  id: number
+  youtubeVideoId: string
+  position: number
   title: string
   channelTitle: string
   duration: string
-  thumbnail: Thumbnail
-  publishedAt: string
+  thumbnailUrl: string
+  publishedAt: string | null
   viewCount: number
 }
 
 export interface Playlist {
-  id: string
+  id: number
+  youtubePlaylistId: string
   title: string
   channelTitle: string
   thumbnailUrl: string
   videoCount: number
   description: string
-  publishedAt: string
+  publishedAt: string | null
+  source: string
+}
+
+export interface PlaylistDetail extends Playlist {
+  videos: Video[]
 }

@@ -4,7 +4,16 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
+from .models import Playlist
+from .serializers import (
+    LoginSerializer,
+    PlaylistDetailSerializer,
+    PlaylistSerializer,
+    PlaylistUrlImportSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
+from .youtube import PlaylistImportError, YouTubeAPIError, import_playlist_for_user
 
 
 def auth_response_for_user(user):
@@ -45,3 +54,56 @@ def login(request):
 @permission_classes([IsAuthenticated])
 def current_user(request):
     return Response(UserSerializer(request.user).data)
+
+
+# ── Playlist views ───────────────────────────────────────────────────────
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def playlist_list(request):
+    """List playlists owned by the current user."""
+    playlists = Playlist.objects.filter(user=request.user)
+    return Response(PlaylistSerializer(playlists, many=True).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def playlist_detail(request, pk):
+    """Get a single playlist owned by the current user."""
+    try:
+        playlist = Playlist.objects.get(pk=pk, user=request.user)
+    except Playlist.DoesNotExist:
+        return Response(
+            {"detail": "Playlist not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return Response(PlaylistDetailSerializer(playlist).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def playlist_import(request):
+    """Import a public YouTube playlist from a URL for the current user."""
+    serializer = PlaylistUrlImportSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    url = serializer.validated_data["url"]
+
+    try:
+        playlist, created = import_playlist_for_user(request.user, url)
+    except PlaylistImportError as exc:
+        return Response(
+            {"url": url, "detail": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except YouTubeAPIError as exc:
+        return Response(
+            {"url": url, "detail": str(exc)},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return Response(
+        PlaylistDetailSerializer(playlist).data,
+        status=response_status,
+    )

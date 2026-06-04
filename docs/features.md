@@ -10,31 +10,27 @@ Current feature inventory for the `master` branch. This file distinguishes what 
 - **Auth provider with token persistence** -- stores the DRF token in `localStorage`, loads the current user, and clears the session if `/api/auth/me/` fails. Source: `frontend/src/auth/AuthProvider.tsx`, `frontend/src/auth/AuthContext.ts`
 - **Protected routes** -- playlist, detail, and watch pages require an authenticated frontend session and redirect unauthenticated users to `/login`. Source: `frontend/src/components/ProtectedRoute.tsx`, `frontend/src/App.tsx`
 - **User menu** -- displays username/email and provides a logout button. Source: `frontend/src/components/UserMenu.tsx`
-- **Mock playlist browser** -- displays playlist cards from local mock data in a responsive grid. Source: `frontend/src/pages/PlaylistBrowser.tsx`, `frontend/src/data/mockData.ts`, `frontend/src/components/PlaylistCard.tsx`
-- **Mock playlist detail page** -- shows a selected mock playlist and its videos, with browser-history back navigation. Source: `frontend/src/pages/PlaylistDetail.tsx`, `frontend/src/components/VideoListItem.tsx`
+- **Database-backed playlist browser** -- displays the current user's imported playlist cards from the backend in a responsive grid. Source: `frontend/src/pages/PlaylistBrowser.tsx`, `frontend/src/api/playlists.ts`, `frontend/src/components/PlaylistCard.tsx`
+- **Database-backed playlist detail page** -- shows a selected playlist and its videos from the database, with back navigation. Source: `frontend/src/pages/PlaylistDetail.tsx`, `frontend/src/components/VideoListItem.tsx`
 - **Video list item UI** -- shows thumbnail, duration badge, title, channel, and formatted view count; stores selected video ID in `localStorage` before navigating to the watch page. Source: `frontend/src/components/VideoListItem.tsx`
 - **Watch page** -- 70/30 split layout with embedded YouTube player and notes sidebar. Source: `frontend/src/pages/WatchPage.tsx`
 - **YouTube player** -- embedded iframe player with URL/video ID input, Enter-to-load behavior, and `localStorage` persistence for the last video ID. Source: `frontend/src/components/YouTubePlayer.tsx`
 - **Markdown notes editor** -- edit/preview toggle using `marked`; notes are currently stored in `localStorage`. Source: `frontend/src/components/MarkdownNotes.tsx`
 - **Dark theme styling** -- current UI uses a dark color scheme with red accent styling. Source: `frontend/src/index.css`, `frontend/src/pages/*`, `frontend/src/components/*`
-- **Frontend playlist/video TypeScript types** -- local mock-data-oriented `Playlist`, `Video`, and `Thumbnail` interfaces. Source: `frontend/src/types/playlist.ts`
-- **Django + DRF backend scaffold** -- backend has Django, DRF, CORS, SQLite settings, and a root API endpoint returning a hello-world status response. Source: `backend/config/settings.py`, `backend/api/views.py`, `backend/api/urls.py`
+- **Frontend playlist/video TypeScript types** -- API-backed `Playlist`, `Video`, `PlaylistDetail` interfaces with camelCase normalization. Source: `frontend/src/types/playlist.ts`
+- **Django + DRF backend scaffold** -- backend has Django, DRF, CORS, SQLite settings, and auth + playlist endpoints. Source: `backend/config/settings.py`, `backend/api/views.py`, `backend/api/urls.py`
+- **YouTube playlist URL import** -- authenticated users can paste a public YouTube playlist URL; playlist and video metadata are fetched via YouTube Data API v3, stored in the local database, and rendered by the browser/detail/watch flows. Source: `backend/api/youtube.py`, `backend/api/views.py`, `frontend/src/pages/PlaylistBrowser.tsx`
+- **Backend playlist/video models** -- `Playlist` and `Video` Django models with per-user scoping and unique constraints. Source: `backend/api/models.py`, `backend/api/migrations/0001_initial.py`
 - **Project requirements documentation** -- requirements and YouTube API planning docs are present on `master`. Source: `docs/project-requirements.md`, `docs/plans/product/youtube-api-integration.md`, `docs/plans/specs/youtube-api-integration.md`
 
 ## Not Implemented On Master Yet
 
-- **Backend auth endpoints** -- frontend expects `/api/auth/login/`, `/api/auth/register/`, and `/api/auth/me/`, but committed `master` backend only exposes the root API endpoint.
-- **Backend user profile / UUID model** -- no committed backend models exist on `master`.
-- **DRF TokenAuthentication backend setup** -- frontend stores a token, but backend token auth is not committed on `master`.
 - **YouTube OAuth integration** -- no committed OAuth token model, encryption utility, OAuth views, or YouTube service exists on `master`.
-- **YouTube playlist import** -- no backend URL import endpoint or frontend import UI exists on `master`.
-- **Database-backed playlists/videos** -- playlist browser and detail pages still read from `frontend/src/data/mockData.ts`.
 - **Playlist hide/unhide/unlink/disconnect** -- not present on `master`.
 - **Per-user database notes** -- notes are still localStorage-backed on `master`; `/api/notes/` does not exist on committed backend.
 - **Removed-video UI** -- no `is_removed` handling, removed badge, dimmed styling, or removed-video warning exists on `master`.
 - **Theme toggle** -- dark theme exists, but no dark/light toggle or browser-persisted theme preference exists on `master`.
 - **Obsidian-style Enter markdown behavior** -- markdown preview exists, but headings do not auto-format on Enter in the editor.
-- **Frontend playlist API client and hooks** -- no committed `frontend/src/api/playlist.ts` or `frontend/src/hooks/usePlaylists.ts` exists on `master`.
 - **AI/Gemini analysis and chat** -- future/broader plan only.
 - **Search and filter polish** -- future/broader plan only.
 - **Manual playlist refresh/sync** -- future-only per requirements.
