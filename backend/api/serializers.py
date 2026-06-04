@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from rest_framework import serializers
 
+from .models import Playlist, Video
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -60,3 +62,61 @@ class LoginSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+# ── Playlist / Video serializers ─────────────────────────────────────────
+
+
+class PlaylistUrlImportSerializer(serializers.Serializer):
+    url = serializers.CharField(required=True, allow_blank=False)
+
+
+class VideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Video
+        fields = (
+            "id",
+            "youtube_video_id",
+            "position",
+            "title",
+            "channel_title",
+            "duration",
+            "thumbnail_url",
+            "published_at",
+            "view_count",
+        )
+
+
+class PlaylistSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Playlist
+        fields = (
+            "id",
+            "youtube_playlist_id",
+            "title",
+            "channel_title",
+            "thumbnail_url",
+            "video_count",
+            "description",
+            "published_at",
+            "source",
+        )
+
+
+class PlaylistDetailSerializer(serializers.ModelSerializer):
+    videos = VideoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Playlist
+        fields = (
+            "id",
+            "youtube_playlist_id",
+            "title",
+            "channel_title",
+            "thumbnail_url",
+            "video_count",
+            "description",
+            "published_at",
+            "source",
+            "videos",
+        )

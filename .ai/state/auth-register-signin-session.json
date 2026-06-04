@@ -1,0 +1,21 @@
+{
+  "feature": "auth-register-signin-session",
+  "plan": ".ai/plans/auth-register-signin-session.md",
+  "status": "ready_for_review",
+  "pr_url": "https://github.com/ha0xian/YoutubePlaylist/pull/8",
+  "pr_number": 8,
+  "open_questions": [],
+  "blocked_reason": null,
+  "completed_at": "2026-06-03",
+  "changes_summary": {
+    "backend/config/settings.py": "Added rest_framework.authtoken to INSTALLED_APPS and REST_FRAMEWORK config with TokenAuthentication",
+    "backend/api/serializers.py": "Created — UserSerializer, RegisterSerializer (with case-insensitive unique checks and password validation), LoginSerializer (with authenticate and inactive-user rejection)",
+    "backend/api/views.py": "Added auth_response_for_user helper, register, login, and current_user views",
+    "backend/api/urls.py": "Added auth/register/, auth/login/, auth/me/ routes",
+    "backend/api/tests.py": "Added 18 tests covering registration, login, and current-user flows including edge cases"
+  },
+  "test_results": {
+    "backend": "18 tests passed",
+    "frontend_build": "build succeeded (tsc + vite)"
+  }
+}

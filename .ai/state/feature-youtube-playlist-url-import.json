@@ -1,0 +1,16 @@
+{
+  "feature": "feature-youtube-playlist-url-import",
+  "plan": ".ai/plans/feature-youtube-playlist-url-import.md",
+  "status": "ready_for_review",
+  "open_questions": [],
+  "blocked_reason": null,
+  "notes": {
+    "pre_existing_test_failure": "test_register_rejects_weak_password fails because Django 6.0 aggregates password validation errors into non_field_errors. This is unrelated to this feature.",
+    "tests_total": 34,
+    "tests_passing": 33,
+    "playlist_tests_passing": 15,
+    "playlist_tests_failing": 0,
+    "frontend_build": "passing",
+    "frontend_lint": "passing"
+  }
+}
