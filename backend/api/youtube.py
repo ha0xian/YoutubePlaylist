@@ -229,7 +229,14 @@ def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
         video_ids.append(video_id)
 
     # Batch-fetch video details for durations and view counts
-    video_details = _fetch_video_details(video_ids) if video_ids else {}
+    try:
+        video_details = _fetch_video_details(video_ids) if video_ids else {}
+    except YouTubeAPIError:
+        raise
+    except Exception as exc:
+        raise YouTubeAPIError(
+            f"Failed to fetch video details from YouTube: {exc}"
+        ) from exc
 
     with transaction.atomic():
         playlist, created = Playlist.objects.update_or_create(
