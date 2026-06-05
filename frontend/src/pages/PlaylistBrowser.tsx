@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { listPlaylists, importPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { Playlist } from '../types/playlist'
@@ -17,10 +17,12 @@ export default function PlaylistBrowser() {
   const [importUrlValue, setImportUrlValue] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
-  const didFetch = useRef(false)
-
   const fetchPlaylists = useCallback(async () => {
-    if (!token) return
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     try {
@@ -34,8 +36,6 @@ export default function PlaylistBrowser() {
   }, [token])
 
   useEffect(() => {
-    if (didFetch.current) return
-    didFetch.current = true
     fetchPlaylists()
   }, [fetchPlaylists])
 

@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
@@ -18,15 +18,25 @@ export default function PlaylistDetail() {
   const [error, setError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
 
-  const fetchId = useRef<string | undefined>(undefined)
-
   useEffect(() => {
-    if (!token || !id || fetchId.current === id) return
-    fetchId.current = id
+    if (!id) {
+      setPlaylist(null)
+      setError(null)
+      setIsLoading(false)
+      return
+    }
+
+    if (!token) {
+      setPlaylist(null)
+      setError(null)
+      setIsLoading(false)
+      return
+    }
 
     let isMounted = true
     setIsLoading(true)
     setError(null)
+    setPlaylist(null)
 
     getPlaylist(token, id)
       .then((data) => {
