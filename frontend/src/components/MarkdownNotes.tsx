@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type { KeyboardEvent } from 'react'
 import { marked } from 'marked'
+import { applyMarkdownEnter } from '../lib/markdownEnter'
 
 const FALLBACK_KEY = 'youtube-notes'
 
@@ -10,6 +12,7 @@ interface MarkdownNotesProps {
 export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   const storageKey = videoId ? `youtube-notes:${videoId}` : FALLBACK_KEY
 
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [notes, setNotes] = useState(() => localStorage.getItem(storageKey) || '')
   const [showPreview, setShowPreview] = useState(false)
 
@@ -20,6 +23,28 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   const renderedHtml = useCallback(() => {
     return { __html: marked.parse(notes) as string }
   }, [notes])
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return
+
+    const result = applyMarkdownEnter({
+      value: notes,
+      selectionStart: e.currentTarget.selectionStart,
+      selectionEnd: e.currentTarget.selectionEnd,
+    })
+
+    if (!result) return
+
+    e.preventDefault()
+    setNotes(result.value)
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.setSelectionRange(
+        result.selectionStart,
+        result.selectionEnd,
+      )
+    })
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -43,8 +68,10 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
           />
         ) : (
           <textarea
+            ref={textareaRef}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Write your notes here...&#10;&#10;Supports Markdown: **bold**, *italic*, `code`, # headings, - lists"
             style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace" }}
             className="w-full h-full p-4 border-none resize-none bg-[#1a1a1a] text-[#e0e0e0] text-sm outline-none"

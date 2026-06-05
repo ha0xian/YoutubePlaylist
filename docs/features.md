@@ -16,7 +16,7 @@ frontend code surface rather than planning documents.
 - **Standalone watch page** -- `frontend/src/pages/WatchPage.tsx` renders a 70/30 player and notes layout for `/watch/:videoId`.
 - **YouTube player component** -- `frontend/src/components/YouTubePlayer.tsx` embeds a YouTube iframe, accepts URL/video ID input, supports Enter-to-load, and persists the last video ID in `localStorage`.
 - **Video list item UI** -- `frontend/src/components/VideoListItem.tsx` renders thumbnail, duration, title, channel, formatted view count, and selected-video behavior.
-- **Markdown notes editor** -- `frontend/src/components/MarkdownNotes.tsx` provides edit/preview modes with `marked`; notes are stored per video in `localStorage`.
+- **Markdown notes editor** -- `frontend/src/components/MarkdownNotes.tsx` provides edit/preview modes with `marked`, stores notes per video in `localStorage`, and supports Obsidian-style Enter behavior for headings, lists, tasks, and blockquotes.
 - **Dark theme styling** -- the current CSS and components use a fixed dark UI with red accent styling.
 - **Playlist/video TypeScript types** -- `frontend/src/types/playlist.ts` defines the frontend `Playlist`, `PlaylistDetail`, and `Video` shapes used by the API client.
 - **Django + Django REST Framework backend** -- `backend/config/settings.py`, `backend/config/urls.py`, and `backend/api/urls.py` expose the backend app under `/api/`.
@@ -34,7 +34,6 @@ frontend code surface rather than planning documents.
 - **Per-user database notes** -- there is no `Note` model, note serializer, `/api/notes/<video_id>/` route, or frontend notes API client; notes remain browser-local.
 - **Removed-video persistence and UI** -- the active `Video` model and serializers do not expose `is_removed`; the frontend types and video components do not render removed badges, dimmed styling, or watch warnings.
 - **Dark/light theme toggle** -- the UI has a fixed dark theme; no theme state, toggle control, or persisted theme preference exists.
-- **Obsidian-style Enter markdown behavior** -- notes can be previewed as markdown, but the editor does not transform markdown syntax on Enter.
 - **Search and filtering** -- there is no playlist or video search/filter UI or backend query support.
 - **Manual playlist refresh/sync** -- imports and re-imports happen through the import endpoint only; there is no dedicated refresh/sync action.
 - **AI/Gemini analysis and chat** -- there are no backend or frontend modules for AI analysis, summaries, or chat.
