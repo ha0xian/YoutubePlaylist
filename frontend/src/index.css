@@ -59,3 +59,138 @@ html, body, #root {
 .markdown-preview a {
   color: #6cb6ff;
 }
+
+.markdown-editor {
+  background: #1a1a1a;
+  color: #e0e0e0;
+  font-size: 14px;
+}
+
+.markdown-editor .cm-editor {
+  height: 100%;
+  background: #1a1a1a;
+  color: #e0e0e0;
+  outline: none;
+}
+
+.markdown-editor .cm-focused {
+  outline: none;
+}
+
+.markdown-editor .cm-scroller {
+  padding: 16px;
+  line-height: 1.6;
+}
+
+.markdown-editor .cm-content {
+  min-height: 100%;
+  padding: 0;
+  caret-color: #fff;
+}
+
+.markdown-editor .cm-line {
+  padding: 0;
+}
+
+.markdown-editor .cm-gutters {
+  display: none;
+}
+
+.markdown-editor .cm-placeholder {
+  color: #777;
+}
+
+.markdown-editor .cm-selectionBackground,
+.markdown-editor .cm-focused .cm-selectionBackground {
+  background: #315f9a66;
+}
+
+.markdown-editor .cm-cursor {
+  border-left-color: #fff;
+}
+
+.markdown-editor .cm-md-preview-line {
+  color: #d8d8d8;
+}
+
+.markdown-editor .cm-md-heading {
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.markdown-editor .cm-md-heading-1 {
+  font-size: 1.4em;
+}
+
+.markdown-editor .cm-md-heading-2 {
+  font-size: 1.2em;
+}
+
+.markdown-editor .cm-md-heading-3 {
+  font-size: 1.05em;
+}
+
+.markdown-editor .cm-md-strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+.markdown-editor .cm-md-emphasis {
+  color: #f0f0f0;
+  font-style: italic;
+}
+
+.markdown-editor .cm-md-inline-code {
+  background: #2a2a2a;
+  border-radius: 4px;
+  color: #f0f0f0;
+  font-size: 0.9em;
+  padding: 1px 5px;
+}
+
+.markdown-editor .cm-md-link {
+  color: #6cb6ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-editor .cm-md-blockquote {
+  border-left: 3px solid #555;
+  color: #aaa;
+  padding-left: 12px;
+}
+
+.markdown-editor .cm-md-list {
+  color: #e6e6e6;
+}
+
+.markdown-editor .cm-md-task-list {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.markdown-editor .cm-md-task-checkbox {
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-right: 8px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.markdown-editor .cm-md-task-checkbox.is-checked {
+  background: #2a5a9a;
+  border-color: #6cb6ff;
+}
+
+.markdown-editor .cm-md-fenced-code {
+  background: #202020;
+  color: #d8d8d8;
+}
