@@ -2,7 +2,10 @@
   "feature": "feature-obsidian-enter-markdown",
   "plan": ".ai/plans/feature-obsidian-enter-markdown.md",
   "status": "ready_for_review",
+  "pr": "https://github.com/ha0xian/YoutubePlaylist/pull/13",
   "open_questions": [],
   "blocked_reason": null,
-  "lint_errors": "2 pre-existing errors in PlaylistBrowser.tsx and PlaylistDetail.tsx (setState-in-effect) — not introduced by this branch"
+  "lint_errors": "2 pre-existing errors in PlaylistBrowser.tsx and PlaylistDetail.tsx (setState-in-effect) - not introduced by this branch",
+  "build": "npm run build passed",
+  "helper_sanity": "markdownEnter direct sanity checks passed"
 }

@@ -54,8 +54,6 @@ export function applyMarkdownEnter(
 // ---------------------------------------------------------------------------
 
 interface LineMatch {
-  indent: string
-  marker: string
   nextMarker: string
   content: string
 }
@@ -118,8 +116,6 @@ function tryTaskList(
 
   const indent = m[1]
   return buildResult(lineStart, beforeCursor, afterCursor, textBefore, textAfterLine, {
-    indent,
-    marker: `${indent}- [${m[3]}] `,
     nextMarker: `${indent}- [ ] `,
     content: m[4],
   })
@@ -139,8 +135,6 @@ function tryOrderedList(
   const indent = m[1]
   const num = parseInt(m[2], 10)
   return buildResult(lineStart, beforeCursor, afterCursor, textBefore, textAfterLine, {
-    indent,
-    marker: `${indent}${num}. `,
     nextMarker: `${indent}${num + 1}. `,
     content: m[3],
   })
@@ -160,8 +154,6 @@ function tryUnorderedList(
   const indent = m[1]
   const bullet = m[2]
   return buildResult(lineStart, beforeCursor, afterCursor, textBefore, textAfterLine, {
-    indent,
-    marker: `${indent}${bullet} `,
     nextMarker: `${indent}${bullet} `,
     content: m[3],
   })
@@ -182,8 +174,6 @@ function tryBlockquote(
   const indent = m[1]
   const marker = `${indent}${prefix} `
   return buildResult(lineStart, beforeCursor, afterCursor, textBefore, textAfterLine, {
-    indent,
-    marker,
     nextMarker: marker,
     content: m[3],
   })
