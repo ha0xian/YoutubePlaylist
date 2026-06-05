@@ -39,6 +39,7 @@ frontend code surface rather than planning documents.
 - **Manual playlist refresh/sync** -- imports and re-imports happen through the import endpoint only; there is no dedicated refresh/sync action.
 - **AI/Gemini analysis and chat** -- there are no backend or frontend modules for AI analysis, summaries, or chat.
 - **Production CORS hardening** -- `backend/config/settings.py` still sets `CORS_ALLOW_ALL_ORIGINS = True`.
+- **Settings** -- Different settings option on layout
 
 ## Code Surface Checked
 

@@ -2,6 +2,8 @@
   "feature": "feature-playlist-detail-watch-notes",
   "plan": ".ai/plans/feature-playlist-detail-watch-notes.md",
   "status": "ready_for_review",
+  "pr": "https://github.com/ha0xian/YoutubePlaylist/pull/11",
+  "pr_number": 11,
   "open_questions": [],
   "blocked_reason": null
 }
