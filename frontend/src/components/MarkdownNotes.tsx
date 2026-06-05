@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { marked } from 'marked'
+import { applyMarkdownEnter } from '../lib/markdownEnter'
 
 const FALLBACK_KEY = 'youtube-notes'
 
@@ -12,10 +13,35 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
 
   const [notes, setNotes] = useState(() => localStorage.getItem(storageKey) || '')
   const [showPreview, setShowPreview] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   useEffect(() => {
     localStorage.setItem(storageKey, notes)
   }, [storageKey, notes])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter') return
+    if (e.shiftKey) return
+
+    const textarea = e.currentTarget
+    const result = applyMarkdownEnter({
+      value: textarea.value,
+      selectionStart: textarea.selectionStart,
+      selectionEnd: textarea.selectionEnd,
+    })
+
+    if (result) {
+      e.preventDefault()
+      setNotes(result.value)
+      requestAnimationFrame(() => {
+        const el = textareaRef.current
+        if (el) {
+          el.selectionStart = result.selectionStart
+          el.selectionEnd = result.selectionEnd
+        }
+      })
+    }
+  }
 
   const renderedHtml = useCallback(() => {
     return { __html: marked.parse(notes) as string }
@@ -43,8 +69,10 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
           />
         ) : (
           <textarea
+            ref={textareaRef}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Write your notes here...&#10;&#10;Supports Markdown: **bold**, *italic*, `code`, # headings, - lists"
             style={{ fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace" }}
             className="w-full h-full p-4 border-none resize-none bg-[#1a1a1a] text-[#e0e0e0] text-sm outline-none"
