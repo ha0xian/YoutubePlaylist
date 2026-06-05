@@ -7,6 +7,9 @@ Repository guidance for Codex Cloud code review.
 - Prioritize P0/P1 findings only. Avoid comments about style, formatting, or
   speculative improvements unless they create a serious correctness, security,
   privacy, or reliability risk.
+- After each code review session, update the relevant `.ai/state` document(s)
+  and push those state updates so the repository artifacts reflect the latest
+  review status.
 - Treat authentication and authorization regressions as high priority. Verify
   protected frontend routes stay protected and backend endpoints that handle
   user-owned data require the correct authenticated user.
