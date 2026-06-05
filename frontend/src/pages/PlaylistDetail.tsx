@@ -4,6 +4,8 @@ import { getPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
 import VideoListItem from '../components/VideoListItem'
+import YouTubePlayer from '../components/YouTubePlayer'
+import MarkdownNotes from '../components/MarkdownNotes'
 import UserMenu from '../components/UserMenu'
 
 export default function PlaylistDetail() {
@@ -14,6 +16,7 @@ export default function PlaylistDetail() {
   const [playlist, setPlaylist] = useState<PlaylistDetailType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
 
   const fetchId = useRef<string | undefined>(undefined)
 
@@ -45,10 +48,22 @@ export default function PlaylistDetail() {
     }
   }, [token, id])
 
+  // Auto-select first video when playlist loads, fall back if selected is no longer in list
+  const effectiveVideoId = (() => {
+    if (!playlist || playlist.videos.length === 0) return null
+    if (
+      selectedVideoId &&
+      playlist.videos.some((v) => v.youtubeVideoId === selectedVideoId)
+    ) {
+      return selectedVideoId
+    }
+    return playlist.videos[0].youtubeVideoId
+  })()
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
-        <p className="text-sm text-[#999]">Loading playlist…</p>
+        <p className="text-sm text-[#999]">Loading playlist...</p>
       </div>
     )
   }
@@ -87,9 +102,9 @@ export default function PlaylistDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f]">
-      <header className="sticky top-0 z-10 bg-[#0f0f0f]/95 backdrop-blur-sm border-b border-[#333]">
-        <div className="flex items-center justify-between gap-4 px-6 py-4">
+    <div className="h-screen bg-[#0f0f0f] flex flex-col overflow-hidden">
+      <header className="shrink-0 bg-[#0f0f0f]/95 backdrop-blur-sm border-b border-[#333]">
+        <div className="flex items-center justify-between gap-4 px-6 py-3">
           <div className="flex items-center gap-4 min-w-0">
             <button
               onClick={() => navigate('/')}
@@ -101,7 +116,7 @@ export default function PlaylistDetail() {
               Back
             </button>
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-white truncate">{playlist.title}</h1>
+              <h1 className="text-lg font-bold text-white truncate">{playlist.title}</h1>
               <p className="text-xs text-[#999] mt-0.5">
                 {playlist.channelTitle} &middot; {playlist.videoCount} videos
               </p>
@@ -110,21 +125,44 @@ export default function PlaylistDetail() {
           <UserMenu />
         </div>
         {playlist.description && (
-          <p className="text-sm text-[#999] px-6 pb-4">{playlist.description}</p>
+          <p className="text-sm text-[#999] px-6 pb-3 truncate">{playlist.description}</p>
         )}
       </header>
 
-      <main className="flex flex-col divide-y divide-[#333]">
-        {playlist.videos.length === 0 ? (
-          <p className="text-sm text-[#999] p-6 text-center">
-            This playlist has no videos.
-          </p>
-        ) : (
-          playlist.videos.map((video) => (
-            <VideoListItem key={video.id} video={video} />
-          ))
-        )}
-      </main>
+      {playlist.videos.length === 0 ? (
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-[#999]">This playlist has no videos.</p>
+        </main>
+      ) : (
+        <main className="flex-1 flex overflow-hidden">
+          {/* Left: YouTube player */}
+          <div className="flex-[7] flex flex-col bg-black min-w-0">
+            <YouTubePlayer
+              key={effectiveVideoId ?? 'no-video'}
+              initialVideoId={effectiveVideoId ?? undefined}
+            />
+          </div>
+          {/* Right: notes + video list */}
+          <div className="flex-[3] flex flex-col border-l border-[#333] min-w-[360px]">
+            <div className="h-[45%] overflow-hidden">
+              <MarkdownNotes
+                key={effectiveVideoId ?? 'no-video'}
+                videoId={effectiveVideoId ?? undefined}
+              />
+            </div>
+            <div className="flex-1 overflow-y-auto border-t border-[#333]">
+              {playlist.videos.map((video) => (
+                <VideoListItem
+                  key={video.id}
+                  video={video}
+                  isSelected={video.youtubeVideoId === effectiveVideoId}
+                  onSelect={(v) => setSelectedVideoId(v.youtubeVideoId)}
+                />
+              ))}
+            </div>
+          </div>
+        </main>
+      )}
     </div>
   )
 }

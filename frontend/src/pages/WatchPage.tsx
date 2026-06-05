@@ -17,7 +17,7 @@ export default function WatchPage() {
         <div className="shrink-0 border-b border-[#333] bg-[#0f0f0f] px-4 py-3">
           <UserMenu />
         </div>
-        <MarkdownNotes />
+        <MarkdownNotes key={videoId} videoId={videoId} />
       </div>
     </div>
   )
