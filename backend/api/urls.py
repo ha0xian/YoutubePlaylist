@@ -10,4 +10,5 @@ urlpatterns = [
     path("playlists/", views.playlist_list, name="playlist-list"),
     path("playlists/<int:pk>/", views.playlist_detail, name="playlist-detail"),
     path("playlists/import/", views.playlist_import, name="playlist-import"),
+    path("notes/<str:video_id>/", views.note_detail, name="note-detail"),
 ]
