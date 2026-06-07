@@ -29,8 +29,18 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>(readEditorMode)
   const lastSavedNotesRef = useRef('')
   const saveAbortRef = useRef<AbortController | null>(null)
+  const unmountingRef = useRef(false)
   const isLoaded = Boolean(noteKey && loadedNoteKey === noteKey)
   const isLoading = Boolean(noteKey && !isLoaded && !loadError)
+
+  // Track unmount so the save effect can flush pending writes instead of
+  // aborting them when the component leaves the tree.
+  useEffect(() => {
+    unmountingRef.current = false
+    return () => {
+      unmountingRef.current = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!token || !videoId) return undefined
@@ -100,7 +110,17 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
     return () => {
       isActive = false
       window.clearTimeout(timeoutId)
-      controller.abort()
+
+      if (unmountingRef.current) {
+        // Component is leaving the tree.  Flush unsaved changes immediately
+        // instead of losing them.  Don't pass a signal so this save can't be
+        // aborted.
+        if (notes !== lastSavedNotesRef.current) {
+          saveNote(token, videoId, notes).catch(() => {})
+        }
+      } else {
+        controller.abort()
+      }
     }
   }, [token, videoId, notes, isLoaded, isLoading, loadError])
 
