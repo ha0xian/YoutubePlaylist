@@ -597,3 +597,129 @@ class PlaylistDetailTests(APITestCase):
     def test_detail_requires_auth(self):
         response = self.client.get(f"/api/playlists/{self.p_a.id}/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class NoteDetailTests(APITestCase):
+    def setUp(self):
+        self.video_id = "vid00000001"
+        self.note_url = f"/api/notes/{self.video_id}/"
+        self.user_a = User.objects.create_user(
+            username="noteA", password="AStrongP4ssword!"
+        )
+        self.user_b = User.objects.create_user(
+            username="noteB", password="AStrongP4ssword!"
+        )
+        self.token_a = Token.objects.create(user=self.user_a)
+        self.token_b = Token.objects.create(user=self.user_b)
+
+    def _auth_header(self, token=None):
+        return {"HTTP_AUTHORIZATION": f"Token {(token or self.token_a).key}"}
+
+    def test_note_requires_auth(self):
+        get_response = self.client.get(self.note_url)
+        put_response = self.client.put(
+            self.note_url,
+            {"content": "hello"},
+            format="json",
+        )
+
+        self.assertEqual(get_response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(put_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_missing_note_returns_empty_shape(self):
+        response = self.client.get(self.note_url, **self._auth_header())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(response.data["id"])
+        self.assertEqual(response.data["youtube_video_id"], self.video_id)
+        self.assertEqual(response.data["content"], "")
+        self.assertIsNone(response.data["created_at"])
+        self.assertIsNone(response.data["updated_at"])
+
+    def test_put_creates_note(self):
+        response = self.client.put(
+            self.note_url,
+            {"content": "hello"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["youtube_video_id"], self.video_id)
+        self.assertEqual(response.data["content"], "hello")
+
+        from .models import Note
+
+        note = Note.objects.get(user=self.user_a, youtube_video_id=self.video_id)
+        self.assertEqual(note.content, "hello")
+
+    def test_put_updates_existing_note_without_duplicate(self):
+        first = self.client.put(
+            self.note_url,
+            {"content": "first"},
+            format="json",
+            **self._auth_header(),
+        )
+        second = self.client.put(
+            self.note_url,
+            {"content": "second"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.data["content"], "second")
+
+        from .models import Note
+
+        notes = Note.objects.filter(user=self.user_a, youtube_video_id=self.video_id)
+        self.assertEqual(notes.count(), 1)
+        self.assertEqual(notes.get().content, "second")
+
+    def test_blank_content_is_allowed(self):
+        response = self.client.put(
+            self.note_url,
+            {"content": ""},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["content"], "")
+
+    def test_missing_content_is_rejected(self):
+        response = self.client.put(
+            self.note_url,
+            {},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("content", response.data)
+
+    def test_notes_are_scoped_per_user(self):
+        response_a = self.client.put(
+            self.note_url,
+            {"content": "user A note"},
+            format="json",
+            **self._auth_header(self.token_a),
+        )
+        response_b = self.client.put(
+            self.note_url,
+            {"content": "user B note"},
+            format="json",
+            **self._auth_header(self.token_b),
+        )
+        get_a = self.client.get(self.note_url, **self._auth_header(self.token_a))
+        get_b = self.client.get(self.note_url, **self._auth_header(self.token_b))
+
+        self.assertEqual(response_a.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_b.status_code, status.HTTP_200_OK)
+        self.assertEqual(get_a.data["content"], "user A note")
+        self.assertEqual(get_b.data["content"], "user B note")
+
+        from .models import Note
+
+        self.assertEqual(Note.objects.filter(youtube_video_id=self.video_id).count(), 2)

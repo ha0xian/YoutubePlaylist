@@ -4,9 +4,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Playlist
+from .models import Note, Playlist
 from .serializers import (
     LoginSerializer,
+    NoteSerializer,
     PlaylistDetailSerializer,
     PlaylistSerializer,
     PlaylistUrlImportSerializer,
@@ -107,3 +108,38 @@ def playlist_import(request):
         PlaylistDetailSerializer(playlist).data,
         status=response_status,
     )
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def note_detail(request, video_id):
+    """Get or upsert the current user's note for a YouTube video ID."""
+    if not video_id.strip():
+        return Response(
+            {"detail": "Video ID is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if request.method == "GET":
+        note = Note.objects.filter(
+            user=request.user,
+            youtube_video_id=video_id,
+        ).first()
+        if note is None:
+            return Response({
+                "id": None,
+                "youtube_video_id": video_id,
+                "content": "",
+                "created_at": None,
+                "updated_at": None,
+            })
+        return Response(NoteSerializer(note).data)
+
+    serializer = NoteSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    note, _ = Note.objects.update_or_create(
+        user=request.user,
+        youtube_video_id=video_id,
+        defaults={"content": serializer.validated_data["content"]},
+    )
+    return Response(NoteSerializer(note).data)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { listPlaylists, importPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { Playlist } from '../types/playlist'
@@ -17,27 +17,31 @@ export default function PlaylistBrowser() {
   const [importUrlValue, setImportUrlValue] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
-  const fetchPlaylists = useCallback(async () => {
-    if (!token) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await listPlaylists(token)
-      setPlaylists(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load playlists.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [token])
+  const fetchVersionRef = useRef(0)
 
   useEffect(() => {
-    fetchPlaylists()
-  }, [fetchPlaylists])
+    if (!token) return
+
+    const version = ++fetchVersionRef.current
+
+    listPlaylists(token)
+      .then((data) => {
+        if (version === fetchVersionRef.current) {
+          setPlaylists(data)
+          setIsLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (version === fetchVersionRef.current) {
+          setError(err instanceof Error ? err.message : 'Failed to load playlists.')
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      fetchVersionRef.current = -1
+    }
+  }, [token])
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +56,24 @@ export default function PlaylistBrowser() {
     try {
       await importPlaylist(token!, trimmed)
       setImportUrl('')
-      await fetchPlaylists()
+      // Refresh playlist list after import
+      setIsLoading(true)
+      setError(null)
+      const refreshVersion = ++fetchVersionRef.current
+      try {
+        const data = await listPlaylists(token!)
+        if (refreshVersion === fetchVersionRef.current) {
+          setPlaylists(data)
+        }
+      } catch (err) {
+        if (refreshVersion === fetchVersionRef.current) {
+          setError(err instanceof Error ? err.message : 'Failed to load playlists.')
+        }
+      } finally {
+        if (refreshVersion === fetchVersionRef.current) {
+          setIsLoading(false)
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Import failed.'
       setImportError(message)

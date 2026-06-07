@@ -1,0 +1,13 @@
+﻿{
+    "feature":  "feature-per-user-database-notes",
+    "plan":  ".ai/plans/feature-per-user-database-notes.md",
+    "status":  "ready_for_review",
+    "pr_url":  "https://github.com/ha0xian/YoutubePlaylist/pull/15",
+    "pr_number":  15,
+    "open_questions":  [
+
+                       ],
+    "blocked_reason":  null,
+    "review_status":  "addressed_latest_feedback",
+    "lastUpdated":  "2026-06-07T15:10:00Z"
+}

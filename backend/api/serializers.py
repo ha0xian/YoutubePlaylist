@@ -1,9 +1,10 @@
 from django.contrib.auth import authenticate, password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth.models import User
 from django.db.models import Q
 from rest_framework import serializers
 
-from .models import Playlist, Video
+from .models import Note, Playlist, Video
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -33,7 +34,10 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         temp_user = User(**attrs)
-        password_validation.validate_password(attrs["password"], user=temp_user)
+        try:
+            password_validation.validate_password(attrs["password"], user=temp_user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": exc.messages}) from exc
         return attrs
 
     def create(self, validated_data):
@@ -120,3 +124,11 @@ class PlaylistDetailSerializer(serializers.ModelSerializer):
             "source",
             "videos",
         )
+
+
+class NoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Note
+        fields = ("id", "youtube_video_id", "content", "created_at", "updated_at")
+        read_only_fields = ("id", "youtube_video_id", "created_at", "updated_at")
+        extra_kwargs = {"content": {"required": True, "allow_blank": True}}

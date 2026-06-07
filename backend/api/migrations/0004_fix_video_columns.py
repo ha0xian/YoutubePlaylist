@@ -3,6 +3,34 @@
 from django.db import migrations
 
 
+def _columns(schema_editor, table_name):
+    return {
+        column.name
+        for column in schema_editor.connection.introspection.get_table_description(
+            schema_editor.connection.cursor(),
+            table_name,
+        )
+    }
+
+
+def fix_video_columns(apps, schema_editor):
+    columns = _columns(schema_editor, "api_video")
+    if "updated_at" not in columns:
+        schema_editor.execute("ALTER TABLE api_video ADD COLUMN updated_at datetime NULL;")
+    for column_name in ["is_deleted", "is_removed"]:
+        if column_name in columns:
+            schema_editor.execute(f"ALTER TABLE api_video DROP COLUMN {column_name};")
+
+
+def restore_video_columns(apps, schema_editor):
+    columns = _columns(schema_editor, "api_video")
+    for column_name in ["is_deleted", "is_removed"]:
+        if column_name not in columns:
+            schema_editor.execute(
+                f"ALTER TABLE api_video ADD COLUMN {column_name} bool NOT NULL DEFAULT 0;"
+            )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,15 +38,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=[
-                "ALTER TABLE api_video ADD COLUMN updated_at datetime NULL;",
-                "ALTER TABLE api_video DROP COLUMN is_deleted;",
-                "ALTER TABLE api_video DROP COLUMN is_removed;",
-            ],
-            reverse_sql=[
-                "ALTER TABLE api_video ADD COLUMN is_deleted bool NOT NULL DEFAULT 0;",
-                "ALTER TABLE api_video ADD COLUMN is_removed bool NOT NULL DEFAULT 0;",
-            ],
+        migrations.RunPython(
+            fix_video_columns,
+            restore_video_columns,
         ),
     ]

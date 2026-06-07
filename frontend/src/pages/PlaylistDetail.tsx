@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
@@ -13,48 +13,36 @@ export default function PlaylistDetail() {
   const navigate = useNavigate()
   const { token } = useAuth()
 
+  const canFetch = Boolean(id && token)
   const [playlist, setPlaylist] = useState<PlaylistDetailType | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(canFetch)
   const [error, setError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const fetchVersionRef = useRef(0)
 
   useEffect(() => {
-    if (!id) {
-      setPlaylist(null)
-      setError(null)
-      setIsLoading(false)
-      return
-    }
+    if (!id || !token) return
 
-    if (!token) {
-      setPlaylist(null)
-      setError(null)
-      setIsLoading(false)
-      return
-    }
-
-    let isMounted = true
-    setIsLoading(true)
-    setError(null)
-    setPlaylist(null)
+    const version = ++fetchVersionRef.current
 
     getPlaylist(token, id)
       .then((data) => {
-        if (isMounted) setPlaylist(data)
+        if (version === fetchVersionRef.current) {
+          setPlaylist(data)
+          setIsLoading(false)
+        }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (version === fetchVersionRef.current) {
           setError(
             err instanceof Error ? err.message : 'Failed to load playlist.',
           )
+          setIsLoading(false)
         }
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false)
       })
 
     return () => {
-      isMounted = false
+      fetchVersionRef.current = -1
     }
   }, [token, id])
 

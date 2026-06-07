@@ -3,6 +3,32 @@
 from django.db import migrations
 
 
+def _columns(schema_editor, table_name):
+    return {
+        column.name
+        for column in schema_editor.connection.introspection.get_table_description(
+            schema_editor.connection.cursor(),
+            table_name,
+        )
+    }
+
+
+def drop_stale_playlist_columns(apps, schema_editor):
+    columns = _columns(schema_editor, "api_playlist")
+    for column_name in ["is_deleted", "is_hidden", "is_unlinked"]:
+        if column_name in columns:
+            schema_editor.execute(f"ALTER TABLE api_playlist DROP COLUMN {column_name};")
+
+
+def restore_stale_playlist_columns(apps, schema_editor):
+    columns = _columns(schema_editor, "api_playlist")
+    for column_name in ["is_deleted", "is_hidden", "is_unlinked"]:
+        if column_name not in columns:
+            schema_editor.execute(
+                f"ALTER TABLE api_playlist ADD COLUMN {column_name} bool NOT NULL DEFAULT 0;"
+            )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,16 +36,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=[
-                "ALTER TABLE api_playlist DROP COLUMN is_deleted;",
-                "ALTER TABLE api_playlist DROP COLUMN is_hidden;",
-                "ALTER TABLE api_playlist DROP COLUMN is_unlinked;",
-            ],
-            reverse_sql=[
-                "ALTER TABLE api_playlist ADD COLUMN is_deleted bool NOT NULL DEFAULT 0;",
-                "ALTER TABLE api_playlist ADD COLUMN is_hidden bool NOT NULL DEFAULT 0;",
-                "ALTER TABLE api_playlist ADD COLUMN is_unlinked bool NOT NULL DEFAULT 0;",
-            ],
+        migrations.RunPython(
+            drop_stale_playlist_columns,
+            restore_stale_playlist_columns,
         ),
     ]
