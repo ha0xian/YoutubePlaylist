@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import CodeMirrorMarkdownEditor from './CodeMirrorMarkdownEditor'
 import { useAuth } from '../auth/useAuth'
 import { getNote, saveNote } from '../api/notes'
@@ -129,7 +130,8 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   }, [editorMode])
 
   const renderedHtml = useCallback(() => {
-    return { __html: marked.parse(notes) as string }
+    const html = marked.parse(notes) as string
+    return { __html: DOMPurify.sanitize(html) }
   }, [notes])
 
   return (
