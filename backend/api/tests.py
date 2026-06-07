@@ -932,9 +932,15 @@ class YouTubeOAuthAuthUrlTests(APITestCase):
 
     def test_auth_url_returns_400_when_not_configured(self):
         """Missing OAuth settings should return 400."""
-        response = self.client.get(
-            self.auth_url_path, **self._auth_header()
-        )
+        with override_settings(
+            YOUTUBE_OAUTH_CLIENT_ID="",
+            YOUTUBE_OAUTH_CLIENT_SECRET="",
+            YOUTUBE_OAUTH_REDIRECT_URI="",
+            YOUTUBE_TOKEN_ENCRYPTION_KEY="",
+        ):
+            response = self.client.get(
+                self.auth_url_path, **self._auth_header()
+            )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
@@ -1056,18 +1062,11 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
         mock_resp.json.return_value = _google_token_payload()
         return mock_resp
 
-    def test_successful_callback_imports_playlists_and_stores_token(self):
-        """End-to-end callback with mocked Google and YouTube."""
+    def test_successful_callback_connects_and_stores_token_without_import(self):
+        """End-to-end callback stores tokens but does not import playlists."""
         state = self._signed_state()
 
         with override_settings(**self.oauth_settings):
-            # We need to mock:
-            # 1. Google token POST
-            # 2. YouTube channels.list
-            # 3. YouTube playlists.list (mine=true)
-            # 4. YouTube playlistItems.list
-            # 5. YouTube videos.list
-
             mock_session = MagicMock()
 
             # Token exchange
@@ -1076,25 +1075,10 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
                 json=Mock(return_value=_google_token_payload()),
             )
 
-            # Channels, playlists, playlistItems, videos
             def _get_side_effect(url, params=None, headers=None, timeout=30):
                 mock = Mock(ok=True)
                 if "channels" in url:
                     mock.json.return_value = {"items": [_channel_snippet()]}
-                elif "playlistItems" in url:
-                    mock.json.return_value = {
-                        "items": _oauth_playlist_items(),
-                    }
-                elif "playlists" in url:
-                    mock.json.return_value = {
-                        "items": [_oauth_playlist_snippet()],
-                    }
-                elif "videos" in url:
-                    mock.json.return_value = {
-                        "items": list(
-                            _oauth_video_details(["vid-oauth-1"]).values()
-                        ),
-                    }
                 else:
                     mock.json.return_value = {"items": []}
                 return mock
@@ -1115,7 +1099,7 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response.data["connected"])
-        self.assertEqual(response.data["imported_playlist_count"], 1)
+        self.assertEqual(response.data["imported_playlist_count"], 0)
         self.assertEqual(response.data["channel_id"], "UCtestchannel123")
         self.assertEqual(response.data["channel_title"], "Test YouTube Channel")
 
@@ -1128,21 +1112,13 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
         )
         self.assertNotIn("ya29", token_row.encrypted_access_token)
 
-        # Verify playlist was created with source="oauth"
         from .models import Playlist, Video
 
-        playlist = Playlist.objects.get(
-            user=self.user, youtube_playlist_id="PLoauth1"
-        )
-        self.assertEqual(playlist.source, "oauth")
-        self.assertEqual(playlist.title, "OAuth Playlist")
+        self.assertEqual(Playlist.objects.filter(user=self.user).count(), 0)
+        self.assertEqual(Video.objects.count(), 0)
 
-        # Verify videos were created
-        self.assertEqual(Video.objects.filter(playlist=playlist).count(), 1)
-
-    def test_callback_preserves_url_source_on_overlap(self):
-        """When an OAuth playlist matches a URL-imported one, source stays
-        'url'."""
+    def test_callback_does_not_update_existing_playlist_on_overlap(self):
+        """OAuth callback connects only; selected import handles playlists."""
         from .models import Playlist
 
         # Pre-create a URL-imported playlist
@@ -1168,20 +1144,6 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
                 mock = Mock(ok=True)
                 if "channels" in url:
                     mock.json.return_value = {"items": [_channel_snippet()]}
-                elif "playlistItems" in url:
-                    mock.json.return_value = {
-                        "items": _oauth_playlist_items(),
-                    }
-                elif "playlists" in url:
-                    mock.json.return_value = {
-                        "items": [_oauth_playlist_snippet()],
-                    }
-                elif "videos" in url:
-                    mock.json.return_value = {
-                        "items": list(
-                            _oauth_video_details(["vid-oauth-1"]).values()
-                        ),
-                    }
                 else:
                     mock.json.return_value = {"items": []}
                 return mock
@@ -1200,11 +1162,273 @@ class YouTubeOAuthCallbackSuccessTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # URL playlist should remain source="url"
         url_playlist.refresh_from_db()
         self.assertEqual(url_playlist.source, "url")
-        # Metadata may be updated
-        self.assertEqual(url_playlist.channel_title, "Test YouTube Channel")
+        self.assertEqual(url_playlist.channel_title, "URL Channel")
+
+    def test_callback_handles_google_account_without_youtube_channel(self):
+        """Google accounts without a YouTube channel connect but import zero playlists."""
+        state = self._signed_state()
+
+        with override_settings(**self.oauth_settings):
+            mock_session = MagicMock()
+            mock_session.post.return_value = Mock(
+                ok=True,
+                json=Mock(return_value=_google_token_payload()),
+            )
+
+            def _get_side_effect(url, params=None, headers=None, timeout=30):
+                if "channels" in url:
+                    mock = Mock(ok=True)
+                    mock.json.return_value = {"items": []}
+                    return mock
+
+                if "playlists" in url:
+                    mock = Mock(ok=False)
+                    mock.status_code = 404
+                    mock.text = '{"error":{"message":"Channel not found."}}'
+                    mock.json.return_value = {
+                        "error": {
+                            "code": 404,
+                            "message": "Channel not found.",
+                            "errors": [
+                                {
+                                    "message": "Channel not found.",
+                                    "domain": "youtube.playlist",
+                                    "reason": "channelNotFound",
+                                    "location": "channelId",
+                                    "locationType": "parameter",
+                                }
+                            ],
+                        }
+                    }
+                    return mock
+
+                mock = Mock(ok=True)
+                mock.json.return_value = {"items": []}
+                return mock
+
+            mock_session.get.side_effect = _get_side_effect
+
+            from . import youtube_oauth as oauth_mod
+
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.post(
+                    self.callback_url,
+                    {"code": "valid-auth-code", "state": state},
+                    format="json",
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["connected"])
+        self.assertEqual(response.data["imported_playlist_count"], 0)
+
+
+class YouTubeOAuthPlaylistSelectionTests(APITestCase):
+    """Tests for remote playlist listing and selected OAuth import."""
+
+    def setUp(self):
+        self.remote_url = "/api/youtube/playlists/"
+        self.import_url = "/api/youtube/playlists/import/"
+        self.user = User.objects.create_user(
+            username="oauthuser", password="AStrongP4ssword!"
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.oauth_settings = {
+            "YOUTUBE_TOKEN_ENCRYPTION_KEY": _TEST_ENCRYPTION_KEY,
+        }
+
+    def _auth_header(self):
+        return {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
+
+    def _connect_youtube(self, access_token="ya29.test-access-token"):
+        from .encryption import encrypt_token
+        from .models import YouTubeOAuthToken
+
+        return YouTubeOAuthToken.objects.create(
+            user=self.user,
+            encrypted_access_token=encrypt_token(access_token),
+            encrypted_refresh_token=encrypt_token("1//refresh-token"),
+        )
+
+    def _mock_youtube_get(self, url, params=None, headers=None, timeout=30):
+        mock = Mock(ok=True)
+        params = params or {}
+
+        if "playlistItems" in url:
+            playlist_id = params.get("playlistId", "PLoauth1")
+            mock.json.return_value = {
+                "items": _oauth_playlist_items(playlist_id),
+            }
+        elif "playlists" in url:
+            if params.get("id"):
+                ids = params["id"].split(",")
+                mock.json.return_value = {
+                    "items": [
+                        _oauth_playlist_snippet(
+                            playlist_id=playlist_id,
+                            title=f"OAuth Playlist {playlist_id[-1]}",
+                        )
+                        for playlist_id in ids
+                    ],
+                }
+            else:
+                mock.json.return_value = {
+                    "items": [
+                        _oauth_playlist_snippet("PLoauth1", "OAuth Playlist 1"),
+                        _oauth_playlist_snippet("PLoauth2", "OAuth Playlist 2"),
+                    ],
+                }
+        elif "videos" in url:
+            video_ids = params.get("id", "").split(",")
+            mock.json.return_value = {
+                "items": list(_oauth_video_details(video_ids).values()),
+            }
+        else:
+            mock.json.return_value = {"items": []}
+
+        return mock
+
+    def test_remote_playlists_requires_auth(self):
+        response = self.client.get(self.remote_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_remote_playlists_requires_connected_youtube(self):
+        with override_settings(**self.oauth_settings):
+            response = self.client.get(
+                self.remote_url,
+                **self._auth_header(),
+            )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("not connected", response.data["detail"].lower())
+
+    def test_remote_playlists_returns_choices_and_imported_state(self):
+        from .models import Playlist
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            existing = Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="Existing URL",
+                channel_title="Existing Channel",
+                source="url",
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.get(
+                    self.remote_url,
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        first = response.data[0]
+        self.assertEqual(first["youtube_playlist_id"], "PLoauth1")
+        self.assertTrue(first["is_imported"])
+        self.assertEqual(first["local_playlist_id"], existing.id)
+        self.assertEqual(first["source"], "url")
+        self.assertEqual(first["video_count"], 1)
+
+    def test_remote_playlists_handles_no_youtube_channel_as_empty_list(self):
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+
+            mock_session = MagicMock()
+
+            def _get_side_effect(url, params=None, headers=None, timeout=30):
+                mock = Mock(ok=False)
+                mock.status_code = 404
+                mock.text = '{"error":{"message":"Channel not found."}}'
+                mock.json.return_value = {
+                    "error": {
+                        "message": "Channel not found.",
+                        "errors": [{"reason": "channelNotFound"}],
+                    }
+                }
+                return mock
+
+            mock_session.get.side_effect = _get_side_effect
+
+            from . import youtube_oauth as oauth_mod
+
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.get(
+                    self.remote_url,
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_selected_import_requires_auth(self):
+        response = self.client.post(
+            self.import_url,
+            {"playlist_ids": ["PLoauth1"]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_selected_import_rejects_invalid_playlist_ids(self):
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            for payload in ({}, {"playlist_ids": []}, {"playlist_ids": "PLoauth1"}):
+                response = self.client.post(
+                    self.import_url,
+                    payload,
+                    format="json",
+                    **self._auth_header(),
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_selected_import_imports_only_selected_and_preserves_sources(self):
+        from .models import Playlist, Video
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            url_playlist = Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="URL Playlist",
+                channel_title="URL Channel",
+                source="url",
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.post(
+                    self.import_url,
+                    {"playlist_ids": ["PLoauth1", "PLoauth2"]},
+                    format="json",
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["imported_playlist_count"], 2)
+
+        url_playlist.refresh_from_db()
+        self.assertEqual(url_playlist.source, "url")
+        self.assertEqual(url_playlist.title, "OAuth Playlist 1")
+
+        oauth_playlist = Playlist.objects.get(
+            user=self.user,
+            youtube_playlist_id="PLoauth2",
+        )
+        self.assertEqual(oauth_playlist.source, "oauth")
+        self.assertEqual(
+            Playlist.objects.filter(user=self.user, youtube_playlist_id="PLoauth3").count(),
+            0,
+        )
+        self.assertEqual(Video.objects.filter(playlist=url_playlist).count(), 1)
+        self.assertEqual(Video.objects.filter(playlist=oauth_playlist).count(), 1)
 
 
 class YouTubeOAuthDisconnectTests(APITestCase):

@@ -6,6 +6,9 @@ import {
   getYouTubeAuthUrl,
   completeYouTubeOAuth,
   disconnectYouTube,
+  listYouTubePlaylists,
+  importYouTubePlaylists,
+  type YouTubeRemotePlaylist,
   type YouTubeStatus,
 } from '../api/youtube'
 import { useAuth } from '../auth/useAuth'
@@ -32,6 +35,14 @@ export default function PlaylistBrowser() {
   const [isCompleting, setIsCompleting] = useState(false)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const [oauthError, setOauthError] = useState<string | null>(null)
+  const [remotePlaylists, setRemotePlaylists] = useState<YouTubeRemotePlaylist[]>([])
+  const [isRemotePickerOpen, setIsRemotePickerOpen] = useState(false)
+  const [selectedRemoteIds, setSelectedRemoteIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [isLoadingRemote, setIsLoadingRemote] = useState(false)
+  const [isImportingRemote, setIsImportingRemote] = useState(false)
+  const [remoteError, setRemoteError] = useState<string | null>(null)
   const fetchVersionRef = useRef(0)
 
   // ── Load playlists ──────────────────────────────────────────────────────
@@ -71,8 +82,44 @@ export default function PlaylistBrowser() {
     if (!token) return
 
     getYouTubeStatus(token)
-      .then(setOauthStatus)
+      .then((status) => {
+        setOauthStatus(status)
+        if (!status.connected) {
+          setRemotePlaylists([])
+          setIsRemotePickerOpen(false)
+          setSelectedRemoteIds(new Set())
+        }
+      })
       .catch(() => setOauthStatus(null))
+  }, [token])
+
+  const loadRemotePlaylists = useCallback(async () => {
+    if (!token) return
+    setIsLoadingRemote(true)
+    setRemoteError(null)
+
+    try {
+      const data = await listYouTubePlaylists(token)
+      setRemotePlaylists(data)
+      setSelectedRemoteIds((current) => {
+        const importableIds = new Set(
+          data
+            .filter((playlist) => !playlist.isImported)
+            .map((playlist) => playlist.youtubePlaylistId),
+        )
+        return new Set(
+          [...current].filter((playlistId) => importableIds.has(playlistId)),
+        )
+      })
+    } catch (err) {
+      setRemoteError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load YouTube playlists.',
+      )
+    } finally {
+      setIsLoadingRemote(false)
+    }
   }, [token])
 
   // ── Handle OAuth callback query params ──────────────────────────────────
@@ -111,12 +158,10 @@ export default function PlaylistBrowser() {
       setOauthError(null)
 
       completeYouTubeOAuth(token, { code, state })
-        .then(() =>
-          Promise.all([getYouTubeStatus(token), listPlaylists(token)]),
-        )
-        .then(([status, refreshedPlaylists]) => {
+        .then(() => getYouTubeStatus(token))
+        .then((status) => {
           setOauthStatus(status)
-          setPlaylists(refreshedPlaylists)
+          return undefined
         })
         .catch((err) => {
           setOauthError(
@@ -170,6 +215,10 @@ export default function PlaylistBrowser() {
       ])
       setOauthStatus(status)
       setPlaylists(refreshedPlaylists)
+      setRemotePlaylists([])
+      setIsRemotePickerOpen(false)
+      setSelectedRemoteIds(new Set())
+      setRemoteError(null)
     } catch (err) {
       setOauthError(
         err instanceof Error
@@ -223,7 +272,61 @@ export default function PlaylistBrowser() {
     }
   }
 
+  const toggleRemotePlaylist = (playlist: YouTubeRemotePlaylist) => {
+    if (playlist.isImported) return
+
+    setSelectedRemoteIds((current) => {
+      const next = new Set(current)
+      if (next.has(playlist.youtubePlaylistId)) {
+        next.delete(playlist.youtubePlaylistId)
+      } else {
+        next.add(playlist.youtubePlaylistId)
+      }
+      return next
+    })
+  }
+
+  const handleOpenRemotePicker = () => {
+    setIsRemotePickerOpen(true)
+    if (remotePlaylists.length === 0) {
+      void loadRemotePlaylists()
+    }
+  }
+
+  const handleCloseRemotePicker = () => {
+    setIsRemotePickerOpen(false)
+    setSelectedRemoteIds(new Set())
+    setRemoteError(null)
+  }
+
+  const handleRemoteImport = async () => {
+    if (!token || selectedRemoteIds.size === 0) return
+
+    setIsImportingRemote(true)
+    setRemoteError(null)
+
+    try {
+      await importYouTubePlaylists(token, [...selectedRemoteIds])
+      const [refreshedLocal, refreshedRemote] = await Promise.all([
+        listPlaylists(token),
+        listYouTubePlaylists(token),
+      ])
+      setPlaylists(refreshedLocal)
+      setRemotePlaylists(refreshedRemote)
+      setSelectedRemoteIds(new Set())
+    } catch (err) {
+      setRemoteError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to import selected playlists.',
+      )
+    } finally {
+      setIsImportingRemote(false)
+    }
+  }
+
   const isOauthConnected = oauthStatus?.connected === true
+  const selectedRemoteCount = selectedRemoteIds.size
 
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
@@ -245,6 +348,14 @@ export default function PlaylistBrowser() {
               <span className="text-xs text-[#3ea6ff]">
                 Connected: {oauthStatus!.channelTitle ?? 'YouTube'}
               </span>
+              <button
+                type="button"
+                onClick={handleOpenRemotePicker}
+                disabled={isDisconnecting}
+                className="bg-[#3ea6ff] text-[#0f0f0f] text-xs px-3 py-1.5 rounded font-medium hover:bg-[#7ec5ff] transition-colors disabled:opacity-50"
+              >
+                Import from YouTube
+              </button>
               <button
                 onClick={handleDisconnect}
                 disabled={isDisconnecting}
@@ -273,6 +384,117 @@ export default function PlaylistBrowser() {
         )}
 
         {/* ── URL import form ────────────────────────────────────────── */}
+        {isOauthConnected && isRemotePickerOpen && (
+          <section className="mt-4 border-t border-[#333] pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-white">
+                  YouTube playlists
+                </h2>
+                <p className="text-xs text-[#999] mt-1">
+                  Select playlists from your connected account to import.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={loadRemotePlaylists}
+                  disabled={isLoadingRemote || isImportingRemote}
+                  className="text-xs text-[#3ea6ff] hover:text-white transition-colors disabled:opacity-50"
+                >
+                  {isLoadingRemote ? 'Loading...' : 'Reload'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoteImport}
+                  disabled={selectedRemoteCount === 0 || isImportingRemote}
+                  className="bg-[#3ea6ff] text-[#0f0f0f] text-sm px-4 py-1.5 rounded font-medium hover:bg-[#7ec5ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isImportingRemote
+                    ? 'Importing...'
+                    : `Import selected (${selectedRemoteCount})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCloseRemotePicker}
+                  disabled={isImportingRemote}
+                  className="text-xs text-[#999] hover:text-white transition-colors disabled:opacity-50"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {remoteError && (
+              <div className="mt-2 text-sm text-[#ff6b6b]">{remoteError}</div>
+            )}
+
+            {isLoadingRemote && remotePlaylists.length === 0 && (
+              <p className="mt-3 text-sm text-[#999]">
+                Loading YouTube playlists...
+              </p>
+            )}
+
+            {!isLoadingRemote && remotePlaylists.length === 0 && !remoteError && (
+              <p className="mt-3 text-sm text-[#999]">
+                No YouTube playlists are available for this account.
+              </p>
+            )}
+
+            {remotePlaylists.length > 0 && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {remotePlaylists.map((playlist) => {
+                  const isSelected = selectedRemoteIds.has(
+                    playlist.youtubePlaylistId,
+                  )
+
+                  return (
+                    <label
+                      key={playlist.youtubePlaylistId}
+                      className={`flex gap-3 rounded border p-3 transition-colors ${
+                        playlist.isImported
+                          ? 'border-[#333] bg-[#181818] opacity-70'
+                          : isSelected
+                            ? 'border-[#3ea6ff] bg-[#152333]'
+                            : 'border-[#333] bg-[#181818] hover:border-[#555]'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={playlist.isImported || isImportingRemote}
+                        onChange={() => toggleRemotePlaylist(playlist)}
+                        className="mt-8 h-4 w-4 accent-[#3ea6ff]"
+                      />
+                      <img
+                        src={playlist.thumbnailUrl || '/favicon.svg'}
+                        alt=""
+                        className="h-20 w-28 rounded object-cover bg-[#222] shrink-0"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-white truncate">
+                          {playlist.title}
+                        </span>
+                        <span className="block text-xs text-[#999] truncate mt-1">
+                          {playlist.channelTitle || 'YouTube'}
+                        </span>
+                        <span className="block text-xs text-[#777] mt-1">
+                          {playlist.videoCount} videos
+                        </span>
+                        {playlist.isImported && (
+                          <span className="mt-2 inline-block text-xs text-[#3ea6ff]">
+                            Imported
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
         <form onSubmit={handleImport} className="mt-4 flex gap-2">
           <input
             type="text"

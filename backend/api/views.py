@@ -23,7 +23,8 @@ from .youtube_oauth import (
     exchange_code_for_tokens,
     store_oauth_tokens_for_user,
     fetch_oauth_channel_profile,
-    import_oauth_playlists_for_user,
+    import_selected_oauth_playlists_for_user,
+    list_remote_playlists_for_user,
     get_valid_access_token,
 )
 from .models import YouTubeOAuthToken
@@ -196,8 +197,7 @@ def youtube_auth_url(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def youtube_callback(request):
-    """Complete the OAuth flow: validate state, exchange code, import
-    playlists."""
+    """Complete the OAuth flow and store the connected account tokens."""
     code = request.data.get("code", "")
     state_str = request.data.get("state", "")
 
@@ -238,7 +238,7 @@ def youtube_callback(request):
     # 3. Store tokens
     try:
         token_row = store_oauth_tokens_for_user(request.user, token_payload)
-    except (YouTubeOAuthConfigError, YouTubeOAuthError) as exc:
+    except (YouTubeOAuthConfigError, YouTubeOAuthError, YouTubeAPIError) as exc:
         return Response(
             {"detail": str(exc)},
             status=status.HTTP_502_BAD_GATEWAY,
@@ -256,20 +256,69 @@ def youtube_callback(request):
         token_row.youtube_channel_title = profile.get("channel_title", "")
         token_row.save(update_fields=["youtube_channel_id", "youtube_channel_title"])
 
-    # 5. Import playlists
+    return Response({
+        "connected": True,
+        "imported_playlist_count": 0,
+        "channel_id": token_row.youtube_channel_id or None,
+        "channel_title": token_row.youtube_channel_title or None,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def youtube_remote_playlists(request):
+    """List remote YouTube playlists for the connected current user."""
     try:
-        imported_count = import_oauth_playlists_for_user(request.user)
-    except (YouTubeOAuthConfigError, YouTubeOAuthError) as exc:
+        playlists = list_remote_playlists_for_user(request.user)
+    except YouTubeOAuthError as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except YouTubeAPIError as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response(playlists)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def youtube_import_playlists(request):
+    """Import only selected remote YouTube playlists for the current user."""
+    playlist_ids = request.data.get("playlist_ids")
+    if not isinstance(playlist_ids, list) or not playlist_ids:
+        return Response(
+            {"detail": "playlist_ids must be a non-empty list."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not all(isinstance(playlist_id, str) for playlist_id in playlist_ids):
+        return Response(
+            {"detail": "playlist_ids must contain only strings."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        playlists, imported_count = import_selected_oauth_playlists_for_user(
+            request.user,
+            playlist_ids,
+        )
+    except YouTubeOAuthError as exc:
+        return Response(
+            {"detail": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except YouTubeAPIError as exc:
         return Response(
             {"detail": str(exc)},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
     return Response({
-        "connected": True,
         "imported_playlist_count": imported_count,
-        "channel_id": token_row.youtube_channel_id or None,
-        "channel_title": token_row.youtube_channel_title or None,
+        "playlists": PlaylistSerializer(playlists, many=True).data,
     })
 
 

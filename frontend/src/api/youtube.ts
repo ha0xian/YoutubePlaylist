@@ -1,3 +1,5 @@
+import type { Playlist } from '../types/playlist'
+
 export interface YouTubeStatus {
   connected: boolean
   channelTitle: string | null
@@ -19,6 +21,24 @@ export interface YouTubeCallbackResponse {
   importedPlaylistCount: number
   channelTitle: string | null
   channelId: string | null
+}
+
+export interface YouTubeRemotePlaylist {
+  youtubePlaylistId: string
+  title: string
+  channelTitle: string
+  thumbnailUrl: string
+  description: string
+  publishedAt: string | null
+  videoCount: number
+  isImported: boolean
+  localPlaylistId: number | null
+  source: 'url' | 'oauth' | null
+}
+
+export interface YouTubePlaylistImportResponse {
+  importedPlaylistCount: number
+  playlists: Playlist[]
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -98,6 +118,29 @@ export function completeYouTubeOAuth(
   })
     .then(parseJson)
     .then((data) => normalizeKeys<YouTubeCallbackResponse>(data))
+}
+
+export function listYouTubePlaylists(
+  token: string,
+): Promise<YouTubeRemotePlaylist[]> {
+  return fetch(`${API_BASE_URL}/api/youtube/playlists/`, {
+    headers: authHeaders(token),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<YouTubeRemotePlaylist[]>(data))
+}
+
+export function importYouTubePlaylists(
+  token: string,
+  playlistIds: string[],
+): Promise<YouTubePlaylistImportResponse> {
+  return fetch(`${API_BASE_URL}/api/youtube/playlists/import/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ playlist_ids: playlistIds }),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<YouTubePlaylistImportResponse>(data))
 }
 
 export function disconnectYouTube(

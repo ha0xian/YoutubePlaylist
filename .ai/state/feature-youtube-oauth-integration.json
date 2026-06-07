@@ -1,0 +1,9 @@
+{
+  "feature": "feature-youtube-oauth-integration",
+  "plan": ".ai/plans/feature-youtube-oauth-integration.md",
+  "status": "ready_for_review",
+  "pr_url": "https://github.com/ha0xian/YoutubePlaylist/pull/16",
+  "pr_number": 16,
+  "open_questions": [],
+  "blocked_reason": null
+}

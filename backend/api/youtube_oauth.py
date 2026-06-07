@@ -423,6 +423,24 @@ def _oauth_get(url: str, params: dict, access_token: str, session=None) -> dict:
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=30,
     )
+
+    endpoint = url.rstrip("/").rsplit("/", 1)[-1]
+
+    def _error_detail() -> str:
+        try:
+            error = resp.json().get("error", {})
+            message = error.get("message", "")
+            errors = error.get("errors", [])
+            reason = ""
+            if errors:
+                reason = errors[0].get("reason", "")
+            if message and reason:
+                return f"{message} ({reason})"
+            return message or reason or "Unknown YouTube API error."
+        except Exception:
+            text = getattr(resp, "text", "")
+            return text[:200] if text else "Unknown YouTube API error."
+
     if resp.status_code == 403:
         raise YouTubeAPIError(
             "YouTube API quota exceeded or access is forbidden. "
@@ -430,7 +448,8 @@ def _oauth_get(url: str, params: dict, access_token: str, session=None) -> dict:
         )
     if not resp.ok:
         raise YouTubeAPIError(
-            f"YouTube API request failed with status {resp.status_code}."
+            f"YouTube {endpoint} request failed with status "
+            f"{resp.status_code}: {_error_detail()}"
         )
 
     data = resp.json()
@@ -455,16 +474,47 @@ def _fetch_oauth_playlists(access_token: str, session=None) -> list[dict]:
         if page_token:
             params["pageToken"] = page_token
 
-        data = _oauth_get(
-            "https://www.googleapis.com/youtube/v3/playlists",
-            params,
-            access_token,
-            session=session,
-        )
+        try:
+            data = _oauth_get(
+                "https://www.googleapis.com/youtube/v3/playlists",
+                params,
+                access_token,
+                session=session,
+            )
+        except YouTubeAPIError as exc:
+            detail = str(exc)
+            if "channelNotFound" in detail or "Channel not found" in detail:
+                return []
+            raise
         playlists.extend(data.get("items", []))
         page_token = data.get("nextPageToken")
         if not page_token:
             break
+
+    return playlists
+
+
+def _fetch_oauth_playlists_by_ids(
+    playlist_ids: list[str],
+    access_token: str,
+    session=None,
+) -> list[dict]:
+    """Fetch playlist metadata for the selected YouTube playlist IDs."""
+    playlists: list[dict] = []
+
+    for i in range(0, len(playlist_ids), 50):
+        batch = playlist_ids[i : i + 50]
+        data = _oauth_get(
+            "https://www.googleapis.com/youtube/v3/playlists",
+            {
+                "part": "snippet,contentDetails",
+                "id": ",".join(batch),
+                "maxResults": 50,
+            },
+            access_token,
+            session=session,
+        )
+        playlists.extend(data.get("items", []))
 
     return playlists
 
@@ -527,6 +577,208 @@ def _fetch_oauth_video_details(
 
 
 # ── OAuth playlist import ──────────────────────────────────────────────
+
+
+def _thumbnail_url(snippet: dict, preferred: str = "medium") -> str:
+    thumbnails = snippet.get("thumbnails", {})
+    return (
+        thumbnails.get(preferred, {}).get("url")
+        or thumbnails.get("default", {}).get("url")
+        or ""
+    )
+
+
+def _remote_playlist_choice(
+    playlist_data: dict,
+    imported_by_id: dict[str, Playlist],
+) -> dict:
+    pl_id = playlist_data.get("id", "")
+    snippet = playlist_data.get("snippet", {})
+    content_details = playlist_data.get("contentDetails", {})
+    local_playlist = imported_by_id.get(pl_id)
+
+    return {
+        "youtube_playlist_id": pl_id,
+        "title": snippet.get("title", ""),
+        "channel_title": snippet.get("channelTitle", ""),
+        "thumbnail_url": _thumbnail_url(snippet),
+        "description": snippet.get("description", ""),
+        "published_at": snippet.get("publishedAt"),
+        "video_count": content_details.get("itemCount", 0),
+        "is_imported": local_playlist is not None,
+        "local_playlist_id": local_playlist.id if local_playlist else None,
+        "source": local_playlist.source if local_playlist else None,
+    }
+
+
+def list_remote_playlists_for_user(user: User) -> list[dict]:
+    """List available YouTube playlists for the connected account."""
+    access_token = get_valid_access_token(user)
+    oauth_playlists = _fetch_oauth_playlists(access_token)
+    playlist_ids = [
+        playlist.get("id", "")
+        for playlist in oauth_playlists
+        if playlist.get("id", "")
+    ]
+    imported_by_id = {
+        playlist.youtube_playlist_id: playlist
+        for playlist in Playlist.objects.filter(
+            user=user,
+            youtube_playlist_id__in=playlist_ids,
+        )
+    }
+
+    return [
+        _remote_playlist_choice(playlist, imported_by_id)
+        for playlist in oauth_playlists
+        if playlist.get("id", "")
+    ]
+
+
+def _playlist_video_payloads(
+    playlist_id: str,
+    access_token: str,
+    session=None,
+) -> tuple[dict[int, dict], dict[str, dict]]:
+    items_data = _fetch_oauth_playlist_items(
+        playlist_id, access_token, session=session
+    )
+
+    item_video_map: dict[int, dict] = {}
+    video_ids: list[str] = []
+    for item in items_data:
+        item_snippet = item.get("snippet", {})
+        resource_id = item_snippet.get("resourceId", {})
+        video_id = resource_id.get("videoId")
+        if not video_id:
+            continue
+
+        position = item_snippet.get("position", 0)
+        item_video_map[position] = {
+            "video_id": video_id,
+            "title": item_snippet.get("title", ""),
+            "channel_title": item_snippet.get("channelTitle", ""),
+            "thumbnail_url": _thumbnail_url(item_snippet, preferred="default"),
+            "published_at": item_snippet.get("publishedAt"),
+        }
+        video_ids.append(video_id)
+
+    video_details: dict[str, dict] = {}
+    if video_ids:
+        try:
+            video_details = _fetch_oauth_video_details(
+                video_ids, access_token, session=session
+            )
+        except YouTubeAPIError:
+            pass
+
+    return item_video_map, video_details
+
+
+def _persist_oauth_playlist(
+    user: User,
+    playlist_data: dict,
+    item_video_map: dict[int, dict],
+    video_details: dict[str, dict],
+) -> Playlist:
+    pl_id = playlist_data.get("id", "")
+    snippet = playlist_data.get("snippet", {})
+    content_details = playlist_data.get("contentDetails", {})
+
+    with transaction.atomic():
+        existing = Playlist.objects.filter(
+            user=user,
+            youtube_playlist_id=pl_id,
+        ).first()
+
+        if existing and existing.source == "url":
+            existing.title = snippet.get("title", existing.title)
+            existing.channel_title = snippet.get(
+                "channelTitle", existing.channel_title
+            )
+            existing.thumbnail_url = (
+                _thumbnail_url(snippet) or existing.thumbnail_url
+            )
+            existing.description = snippet.get(
+                "description", existing.description
+            )
+            existing.published_at = _iso_to_datetime(
+                snippet.get("publishedAt")
+            ) or existing.published_at
+            existing.video_count = content_details.get(
+                "itemCount", existing.video_count
+            )
+            existing.save(
+                update_fields=[
+                    "title",
+                    "channel_title",
+                    "thumbnail_url",
+                    "description",
+                    "published_at",
+                    "video_count",
+                    "updated_at",
+                ]
+            )
+            playlist = existing
+        else:
+            defaults = {
+                "title": snippet.get("title", ""),
+                "channel_title": snippet.get("channelTitle", ""),
+                "thumbnail_url": _thumbnail_url(snippet),
+                "description": snippet.get("description", ""),
+                "published_at": _iso_to_datetime(snippet.get("publishedAt")),
+                "video_count": content_details.get("itemCount", 0),
+                "source": "oauth",
+            }
+            playlist, _ = Playlist.objects.update_or_create(
+                user=user,
+                youtube_playlist_id=pl_id,
+                defaults=defaults,
+            )
+
+        playlist.videos.all().delete()
+        _create_videos(playlist, item_video_map, video_details)
+        return playlist
+
+
+def import_selected_oauth_playlists_for_user(
+    user: User,
+    playlist_ids: list[str],
+) -> tuple[list[Playlist], int]:
+    """Import only the selected YouTube OAuth playlists for *user*."""
+    if not isinstance(playlist_ids, list) or not playlist_ids:
+        raise YouTubeOAuthError("playlist_ids must be a non-empty list.")
+
+    selected_ids: list[str] = []
+    seen: set[str] = set()
+    for playlist_id in playlist_ids:
+        if not isinstance(playlist_id, str) or not playlist_id.strip():
+            raise YouTubeOAuthError("playlist_ids must contain only strings.")
+        normalized = playlist_id.strip()
+        if normalized not in seen:
+            selected_ids.append(normalized)
+            seen.add(normalized)
+
+    access_token = get_valid_access_token(user)
+    oauth_playlists = _fetch_oauth_playlists_by_ids(selected_ids, access_token)
+    selected_set = set(selected_ids)
+
+    imported: list[Playlist] = []
+    for pl_data in oauth_playlists:
+        pl_id = pl_data.get("id", "")
+        if pl_id not in selected_set:
+            continue
+
+        item_video_map, video_details = _playlist_video_payloads(
+            pl_id, access_token
+        )
+        imported.append(
+            _persist_oauth_playlist(
+                user, pl_data, item_video_map, video_details
+            )
+        )
+
+    return imported, len(imported)
 
 
 def import_oauth_playlists_for_user(
