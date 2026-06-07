@@ -3,6 +3,32 @@
 from django.db import migrations
 
 
+def _columns(schema_editor, table_name):
+    return {
+        column.name
+        for column in schema_editor.connection.introspection.get_table_description(
+            schema_editor.connection.cursor(),
+            table_name,
+        )
+    }
+
+
+def rename_source_type_to_source(apps, schema_editor):
+    columns = _columns(schema_editor, "api_playlist")
+    if "source_type" in columns and "source" not in columns:
+        schema_editor.execute(
+            "ALTER TABLE api_playlist RENAME COLUMN source_type TO source;"
+        )
+
+
+def rename_source_to_source_type(apps, schema_editor):
+    columns = _columns(schema_editor, "api_playlist")
+    if "source" in columns and "source_type" not in columns:
+        schema_editor.execute(
+            "ALTER TABLE api_playlist RENAME COLUMN source TO source_type;"
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,19 +36,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=[
-                (
-                    "ALTER TABLE api_playlist RENAME COLUMN source_type TO source;"
-                ),
-            ],
-            reverse_sql=[
-                (
-                    "ALTER TABLE api_playlist RENAME COLUMN source TO source_type;"
-                ),
-            ],
-            state_operations=[
-                # No state change needed — the model already defines "source"
-            ],
+        migrations.RunPython(
+            rename_source_type_to_source,
+            rename_source_to_source_type,
         ),
     ]

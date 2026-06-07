@@ -28,6 +28,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>(readEditorMode)
   const lastSavedNotesRef = useRef('')
+  const saveAbortRef = useRef<AbortController | null>(null)
   const isLoaded = Boolean(noteKey && loadedNoteKey === noteKey)
   const isLoading = Boolean(noteKey && !isLoaded && !loadError)
 
@@ -69,18 +70,24 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
       return undefined
     }
 
+    // Abort the previous in-flight save so it can't overwrite a newer save.
+    saveAbortRef.current?.abort()
+
     let isActive = true
     const pendingNotes = notes
+    const controller = new AbortController()
+    saveAbortRef.current = controller
+
     const timeoutId = window.setTimeout(() => {
       setIsSaving(true)
-      saveNote(token, videoId, pendingNotes)
+      saveNote(token, videoId, pendingNotes, controller.signal)
         .then((note) => {
           if (!isActive) return
           lastSavedNotesRef.current = note.content
           setSaveError(null)
         })
         .catch((err) => {
-          if (!isActive) return
+          if (!isActive || (err instanceof DOMException && err.name === 'AbortError')) return
           setSaveError(
             err instanceof Error ? err.message : 'Failed to save notes.',
           )
@@ -93,6 +100,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
     return () => {
       isActive = false
       window.clearTimeout(timeoutId)
+      controller.abort()
     }
   }, [token, videoId, notes, isLoaded, isLoading, loadError])
 

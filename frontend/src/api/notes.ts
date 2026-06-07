@@ -63,11 +63,13 @@ export function saveNote(
   token: string,
   videoId: string,
   content: string,
+  signal?: AbortSignal,
 ): Promise<Note> {
   return fetch(`${API_BASE_URL}/api/notes/${encodeURIComponent(videoId)}/`, {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify({ content }),
+    signal,
   })
     .then(parseJson)
     .then((data) => normalizeKeys<Note>(data))
