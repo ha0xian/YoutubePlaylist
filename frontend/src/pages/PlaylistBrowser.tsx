@@ -1,5 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { listPlaylists, importPlaylist } from '../api/playlists'
+import {
+  getYouTubeStatus,
+  getYouTubeAuthUrl,
+  completeYouTubeOAuth,
+  disconnectYouTube,
+  type YouTubeStatus,
+} from '../api/youtube'
 import { useAuth } from '../auth/useAuth'
 import type { Playlist } from '../types/playlist'
 import PlaylistCard from '../components/PlaylistCard'
@@ -7,6 +15,7 @@ import UserMenu from '../components/UserMenu'
 
 export default function PlaylistBrowser() {
   const { token } = useAuth()
+  const [searchParams] = useSearchParams()
 
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -17,9 +26,17 @@ export default function PlaylistBrowser() {
   const [importUrlValue, setImportUrlValue] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
 
+  // YouTube OAuth state
+  const [oauthStatus, setOauthStatus] = useState<YouTubeStatus | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [oauthError, setOauthError] = useState<string | null>(null)
   const fetchVersionRef = useRef(0)
 
-  useEffect(() => {
+  // ── Load playlists ──────────────────────────────────────────────────────
+
+  const loadPlaylists = useCallback(() => {
     if (!token) return
 
     const version = ++fetchVersionRef.current
@@ -42,6 +59,129 @@ export default function PlaylistBrowser() {
       fetchVersionRef.current = -1
     }
   }, [token])
+
+  useEffect(() => {
+    const cleanup = loadPlaylists()
+    return cleanup
+  }, [loadPlaylists])
+
+  // ── Load OAuth status ───────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!token) return
+
+    getYouTubeStatus(token)
+      .then(setOauthStatus)
+      .catch(() => setOauthStatus(null))
+  }, [token])
+
+  // ── Handle OAuth callback query params ──────────────────────────────────
+  //
+  // This effect synchronizes React state with the browser URL after Google's
+  // OAuth redirect — a genuinely external system outside React's control.
+  // Calling setState here is the documented valid exception to the
+  // react-hooks/set-state-in-effect rule.
+
+  useEffect(() => {
+    if (!token) return
+
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+    const errorParam = searchParams.get('error')
+
+    if (!errorParam && !(code && state)) return
+
+    // Clean the URL immediately so callback params don't survive a refresh
+    const url = new URL(window.location.href)
+    url.searchParams.delete('code')
+    url.searchParams.delete('state')
+    url.searchParams.delete('error')
+    window.history.replaceState({}, '', url.toString())
+
+    if (errorParam) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOauthError(
+        `YouTube authorization failed: ${errorParam}. Please try connecting again.`,
+      )
+      return
+    }
+
+    if (code && state) {
+      setIsCompleting(true)
+      setOauthError(null)
+
+      completeYouTubeOAuth(token, { code, state })
+        .then(() =>
+          Promise.all([getYouTubeStatus(token), listPlaylists(token)]),
+        )
+        .then(([status, refreshedPlaylists]) => {
+          setOauthStatus(status)
+          setPlaylists(refreshedPlaylists)
+        })
+        .catch((err) => {
+          setOauthError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to complete YouTube connection.',
+          )
+        })
+        .finally(() => {
+          setIsCompleting(false)
+        })
+    }
+    // Only run on mount / when token becomes available — not on every
+    // searchParams change (we already consumed them).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  // ── Connect YouTube ─────────────────────────────────────────────────────
+
+  const handleConnect = async () => {
+    if (!token) return
+    setIsConnecting(true)
+    setOauthError(null)
+
+    try {
+      const { authUrl } = await getYouTubeAuthUrl(token)
+      window.location.href = authUrl
+    } catch (err) {
+      setOauthError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to start YouTube connection.',
+      )
+      setIsConnecting(false)
+    }
+  }
+
+  // ── Disconnect YouTube ──────────────────────────────────────────────────
+
+  const handleDisconnect = async () => {
+    if (!token) return
+    setIsDisconnecting(true)
+    setOauthError(null)
+
+    try {
+      await disconnectYouTube(token)
+      // Refresh playlists and status
+      const [status, refreshedPlaylists] = await Promise.all([
+        getYouTubeStatus(token),
+        listPlaylists(token),
+      ])
+      setOauthStatus(status)
+      setPlaylists(refreshedPlaylists)
+    } catch (err) {
+      setOauthError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to disconnect YouTube.',
+      )
+    } finally {
+      setIsDisconnecting(false)
+    }
+  }
+
+  // ── URL import handler ──────────────────────────────────────────────────
 
   const handleImport = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,6 +223,8 @@ export default function PlaylistBrowser() {
     }
   }
 
+  const isOauthConnected = oauthStatus?.connected === true
+
   return (
     <div className="min-h-screen bg-[#0f0f0f]">
       <header className="sticky top-0 z-10 bg-[#0f0f0f]/95 backdrop-blur-sm p-6 border-b border-[#333]">
@@ -96,6 +238,41 @@ export default function PlaylistBrowser() {
           <UserMenu />
         </div>
 
+        {/* ── OAuth connect / status row ─────────────────────────────── */}
+        <div className="mt-3 flex items-center gap-3">
+          {isOauthConnected ? (
+            <>
+              <span className="text-xs text-[#3ea6ff]">
+                Connected: {oauthStatus!.channelTitle ?? 'YouTube'}
+              </span>
+              <button
+                onClick={handleDisconnect}
+                disabled={isDisconnecting}
+                className="text-xs text-[#999] hover:text-[#ff6b6b] transition-colors disabled:opacity-50"
+              >
+                {isDisconnecting ? 'Disconnecting…' : 'Disconnect'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleConnect}
+              disabled={isConnecting || isCompleting}
+              className="bg-[#cc0000] text-white text-sm px-4 py-1.5 rounded font-medium hover:bg-[#aa0000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConnecting
+                ? 'Connecting…'
+                : isCompleting
+                  ? 'Completing connection…'
+                  : 'Connect YouTube'}
+            </button>
+          )}
+        </div>
+
+        {oauthError && (
+          <div className="mt-2 text-sm text-[#ff6b6b]">{oauthError}</div>
+        )}
+
+        {/* ── URL import form ────────────────────────────────────────── */}
         <form onSubmit={handleImport} className="mt-4 flex gap-2">
           <input
             type="text"

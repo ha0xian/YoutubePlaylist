@@ -56,6 +56,31 @@ class Video(models.Model):
         return f"{self.position}: {self.title}"
 
 
+class YouTubeOAuthToken(models.Model):
+    """Encrypted YouTube OAuth credential for a single app user."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="youtube_oauth_token",
+    )
+    encrypted_access_token = models.TextField()
+    encrypted_refresh_token = models.TextField(blank=True)
+    token_type = models.CharField(max_length=50, default="Bearer")
+    expires_at = models.DateTimeField(null=True, blank=True)
+    scopes = models.TextField(blank=True)
+    youtube_channel_id = models.CharField(max_length=100, blank=True)
+    youtube_channel_title = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"YouTubeOAuthToken(user={self.user_id})"
+
+    class Meta:
+        verbose_name = "YouTube OAuth token"
+
+
 class Note(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notes")
     youtube_video_id = models.CharField(max_length=20, db_index=True)

@@ -19,7 +19,8 @@ export interface Playlist {
   videoCount: number
   description: string
   publishedAt: string | null
-  source: string
+  /** ``"url"`` — imported from a public URL; ``"oauth"`` — imported via YouTube OAuth. */
+  source: 'url' | 'oauth' | string
 }
 
 export interface PlaylistDetail extends Playlist {
