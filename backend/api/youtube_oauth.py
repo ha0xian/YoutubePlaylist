@@ -32,6 +32,7 @@ from .youtube import (
     _fetch_video_details,
     _parse_iso_duration,
     _iso_to_datetime,
+    reconcile_playlist_videos,
 )
 
 # ---------------------------------------------------------------------------
@@ -751,8 +752,7 @@ def _persist_oauth_playlist(
                 defaults=defaults,
             )
 
-        playlist.videos.all().delete()
-        _create_videos(playlist, item_video_map, video_details)
+        reconcile_playlist_videos(playlist, item_video_map, video_details)
         return playlist
 
 
@@ -922,8 +922,7 @@ def import_oauth_playlists_for_user(
                 )
 
                 # Update videos for URL playlists too
-                existing.videos.all().delete()
-                _create_videos(existing, item_video_map, video_details)
+                reconcile_playlist_videos(existing, item_video_map, video_details)
                 imported_count += 1
                 continue
 
@@ -947,9 +946,8 @@ def import_oauth_playlists_for_user(
                 defaults=defaults,
             )
 
-            # Delete stale videos and re-create
-            playlist.videos.all().delete()
-            _create_videos(playlist, item_video_map, video_details)
+            # Reconcile videos — update/create incoming, mark missing as removed
+            reconcile_playlist_videos(playlist, item_video_map, video_details)
             imported_count += 1
 
     return imported_count

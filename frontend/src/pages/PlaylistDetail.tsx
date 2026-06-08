@@ -58,6 +58,9 @@ export default function PlaylistDetail() {
     return playlist.videos[0].youtubeVideoId
   })()
 
+  const effectiveVideo =
+    playlist?.videos.find((v) => v.youtubeVideoId === effectiveVideoId) ?? null
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
@@ -135,6 +138,13 @@ export default function PlaylistDetail() {
         <main className="flex-1 flex overflow-hidden">
           {/* Left: YouTube player */}
           <div className="flex-[7] flex flex-col bg-black min-w-0">
+            {effectiveVideo?.isRemoved && (
+              <div className="bg-[#cc0000]/10 border-b border-[#cc0000]/30 px-4 py-2 text-center">
+                <p className="text-xs text-[#cc0000]">
+                  This video was removed from the source playlist.
+                </p>
+              </div>
+            )}
             <YouTubePlayer
               key={effectiveVideoId ?? 'no-video'}
               initialVideoId={effectiveVideoId ?? undefined}

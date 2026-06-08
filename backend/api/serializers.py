@@ -88,6 +88,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "thumbnail_url",
             "published_at",
             "view_count",
+            "is_removed",
         )
 
 

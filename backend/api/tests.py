@@ -449,6 +449,107 @@ class PlaylistImportSuccessTests(APITestCase):
         )
         self.assertNotEqual(response1.data["id"], response2.data["id"])
 
+    @patch("api.youtube._fetch_video_details")
+    @patch("api.youtube._fetch_playlist_items")
+    @patch("api.youtube._fetch_playlist_snippet")
+    def test_reimport_marks_missing_videos_removed(self, mock_snippet, mock_items, mock_videos):
+        """Videos missing from reimport are marked is_removed=True, not deleted."""
+        mock_snippet.return_value = _playlist_snippet()
+        mock_items.return_value = _playlist_items()
+        mock_videos.return_value = _video_details(["vid00000001", "vid00000002"])
+
+        # First import — 2 videos
+        response1 = self._post_import()
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response1.data["videos"]), 2)
+
+        # Reimport with only 1 video (vid00000001 missing)
+        mock_items.return_value = [
+            {
+                "snippet": {
+                    "title": "Video Two",
+                    "channelTitle": "Test Channel",
+                    "position": 0,
+                    "resourceId": {"videoId": "vid00000002"},
+                    "publishedAt": "2026-01-12T10:00:00Z",
+                    "thumbnails": {
+                        "default": {
+                            "url": "https://i.ytimg.com/vi/vid00000002/default.jpg"
+                        }
+                    },
+                },
+            },
+        ]
+        mock_snippet.return_value = _playlist_snippet()
+        mock_videos.return_value = _video_details(["vid00000002"])
+
+        response2 = self._post_import()
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        # Both videos still in DB
+        from .models import Video
+
+        playlist_id = response2.data["id"]
+        videos = Video.objects.filter(playlist_id=playlist_id)
+        self.assertEqual(videos.count(), 2)
+
+        vid1 = videos.get(youtube_video_id="vid00000001")
+        self.assertTrue(vid1.is_removed)
+
+        vid2 = videos.get(youtube_video_id="vid00000002")
+        self.assertFalse(vid2.is_removed)
+
+    @patch("api.youtube._fetch_video_details")
+    @patch("api.youtube._fetch_playlist_items")
+    @patch("api.youtube._fetch_playlist_snippet")
+    def test_reimport_revives_removed_video(self, mock_snippet, mock_items, mock_videos):
+        """A previously removed video is revived when it reappears in a reimport."""
+        mock_snippet.return_value = _playlist_snippet()
+        mock_items.return_value = _playlist_items()
+        mock_videos.return_value = _video_details(["vid00000001", "vid00000002"])
+
+        # First import — 2 videos
+        response1 = self._post_import()
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Reimport with only 1 video — marks vid00000001 removed
+        mock_items.return_value = [
+            {
+                "snippet": {
+                    "title": "Video Two",
+                    "channelTitle": "Test Channel",
+                    "position": 0,
+                    "resourceId": {"videoId": "vid00000002"},
+                    "publishedAt": "2026-01-12T10:00:00Z",
+                    "thumbnails": {
+                        "default": {
+                            "url": "https://i.ytimg.com/vi/vid00000002/default.jpg"
+                        }
+                    },
+                },
+            },
+        ]
+        mock_videos.return_value = _video_details(["vid00000002"])
+        response2 = self._post_import()
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        from .models import Video
+
+        playlist_id = response2.data["id"]
+        vid1 = Video.objects.get(playlist_id=playlist_id, youtube_video_id="vid00000001")
+        self.assertTrue(vid1.is_removed)
+
+        # Third reimport includes vid00000001 again — it should revive
+        mock_items.return_value = _playlist_items()
+        mock_videos.return_value = _video_details(["vid00000001", "vid00000002"])
+        response3 = self._post_import()
+        self.assertEqual(response3.status_code, status.HTTP_200_OK)
+
+        vid1.refresh_from_db()
+        self.assertFalse(vid1.is_removed)
+        vid2 = Video.objects.get(playlist_id=playlist_id, youtube_video_id="vid00000002")
+        self.assertFalse(vid2.is_removed)
+
 
 class PlaylistImportErrorTests(APITestCase):
     """Error cases for playlist import."""
@@ -595,6 +696,43 @@ class PlaylistDetailTests(APITestCase):
             HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
         )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_detail_includes_is_removed_for_videos(self):
+        """Nested videos include is_removed with the database value."""
+        from .models import Video
+
+        Video.objects.create(
+            playlist=self.p_a,
+            youtube_video_id="vid-active",
+            position=0,
+            title="Active Video",
+            channel_title="ChanA",
+            duration="3:00",
+            thumbnail_url="https://example.com/active.jpg",
+            is_removed=False,
+        )
+        Video.objects.create(
+            playlist=self.p_a,
+            youtube_video_id="vid-removed",
+            position=1,
+            title="Removed Video",
+            channel_title="ChanA",
+            duration="5:00",
+            thumbnail_url="https://example.com/removed.jpg",
+            is_removed=True,
+        )
+
+        response = self.client.get(
+            f"/api/playlists/{self.p_a.id}/",
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["videos"]), 2)
+
+        active = next(v for v in response.data["videos"] if v["youtube_video_id"] == "vid-active")
+        removed = next(v for v in response.data["videos"] if v["youtube_video_id"] == "vid-removed")
+        self.assertFalse(active["is_removed"])
+        self.assertTrue(removed["is_removed"])
 
     def test_detail_requires_auth(self):
         response = self.client.get(f"/api/playlists/{self.p_a.id}/")
@@ -1429,6 +1567,53 @@ class YouTubeOAuthPlaylistSelectionTests(APITestCase):
         )
         self.assertEqual(Video.objects.filter(playlist=url_playlist).count(), 1)
         self.assertEqual(Video.objects.filter(playlist=oauth_playlist).count(), 1)
+
+    def test_selected_import_marks_stale_videos_removed(self):
+        """Existing videos for refreshed selected playlists are marked removed when missing."""
+        from .models import Playlist, Video
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+
+            # Pre-create playlist with a video that will NOT be in the mock items
+            playlist = Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="Old Title",
+                channel_title="Old Channel",
+                source="oauth",
+            )
+            stale_video = Video.objects.create(
+                playlist=playlist,
+                youtube_video_id="vid-stale",
+                position=0,
+                title="Stale Video",
+                channel_title="Old Channel",
+                duration="3:00",
+                thumbnail_url="https://example.com/stale.jpg",
+                is_removed=False,
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.post(
+                    self.import_url,
+                    {"playlist_ids": ["PLoauth1"]},
+                    format="json",
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        stale_video.refresh_from_db()
+        self.assertTrue(stale_video.is_removed)
+
+        # Incoming oauth video is active
+        incoming = Video.objects.get(playlist=playlist, youtube_video_id="vid-oauth-1")
+        self.assertFalse(incoming.is_removed)
 
     def test_selected_import_removes_unchecked_oauth_playlists(self):
         from .models import Playlist

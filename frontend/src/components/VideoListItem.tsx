@@ -21,7 +21,9 @@ export default function VideoListItem({ video, isSelected, onSelect }: VideoList
       onSelect(video)
     } else {
       localStorage.setItem('youtube-video-id', video.youtubeVideoId)
-      navigate(`/watch/${video.youtubeVideoId}`)
+      navigate(`/watch/${video.youtubeVideoId}`, {
+        state: { isRemoved: video.isRemoved },
+      })
     }
   }
 
@@ -32,13 +34,13 @@ export default function VideoListItem({ video, isSelected, onSelect }: VideoList
         isSelected
           ? 'bg-[#2a2a2a] border-l-3 border-[#cc0000]'
           : 'hover:bg-[#2a2a2a]/50 border-l-3 border-transparent'
-      }`}
+      } ${video.isRemoved ? 'opacity-60' : ''}`}
     >
       <div style={{ position: 'relative' }} className="shrink-0">
         <img
           src={video.thumbnailUrl}
           alt={video.title}
-          className="w-40 rounded-md object-cover"
+          className={`w-40 rounded-md object-cover ${video.isRemoved ? 'grayscale-[30%]' : ''}`}
           style={{ aspectRatio: '16/9' }}
           loading="lazy"
         />
@@ -47,9 +49,16 @@ export default function VideoListItem({ video, isSelected, onSelect }: VideoList
         </span>
       </div>
       <div className="flex flex-col justify-between min-w-0">
-        <h3 className="text-sm font-medium text-white line-clamp-2 leading-snug">
-          {video.title}
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className={`text-sm font-medium line-clamp-2 leading-snug ${video.isRemoved ? 'text-[#999]' : 'text-white'}`}>
+            {video.title}
+          </h3>
+          {video.isRemoved && (
+            <span className="shrink-0 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-[#cc0000]/20 text-[#cc0000]">
+              removed
+            </span>
+          )}
+        </div>
         <p className="text-xs text-[#999] mt-1">{video.channelTitle}</p>
         <p className="text-xs text-[#666]">{views}</p>
       </div>
