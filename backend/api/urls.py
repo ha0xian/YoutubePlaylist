@@ -11,4 +11,14 @@ urlpatterns = [
     path("playlists/<int:pk>/", views.playlist_detail, name="playlist-detail"),
     path("playlists/import/", views.playlist_import, name="playlist-import"),
     path("notes/<str:video_id>/", views.note_detail, name="note-detail"),
+    path("youtube/status/", views.youtube_status, name="youtube-status"),
+    path("youtube/auth-url/", views.youtube_auth_url, name="youtube-auth-url"),
+    path("youtube/callback/", views.youtube_callback, name="youtube-callback"),
+    path("youtube/playlists/", views.youtube_remote_playlists, name="youtube-playlists"),
+    path(
+        "youtube/playlists/import/",
+        views.youtube_import_playlists,
+        name="youtube-playlists-import",
+    ),
+    path("youtube/disconnect/", views.youtube_disconnect, name="youtube-disconnect"),
 ]

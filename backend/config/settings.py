@@ -37,6 +37,22 @@ _load_dotenv(BASE_DIR / ".env")
 # YouTube Data API v3 key for public playlist imports
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 
+# ── YouTube OAuth configuration ──────────────────────────────────────────
+
+YOUTUBE_OAUTH_CLIENT_ID = os.environ.get("YOUTUBE_OAUTH_CLIENT_ID", "")
+YOUTUBE_OAUTH_CLIENT_SECRET = os.environ.get("YOUTUBE_OAUTH_CLIENT_SECRET", "")
+YOUTUBE_OAUTH_REDIRECT_URI = os.environ.get("YOUTUBE_OAUTH_REDIRECT_URI", "")
+YOUTUBE_OAUTH_SCOPES_RAW = os.environ.get(
+    "YOUTUBE_OAUTH_SCOPES",
+    "https://www.googleapis.com/auth/youtube.readonly",
+)
+YOUTUBE_OAUTH_SCOPES = [
+    scope.strip()
+    for scope in YOUTUBE_OAUTH_SCOPES_RAW.split(",")
+    if scope.strip()
+]
+YOUTUBE_TOKEN_ENCRYPTION_KEY = os.environ.get("YOUTUBE_TOKEN_ENCRYPTION_KEY", "")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 

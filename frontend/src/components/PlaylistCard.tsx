@@ -25,6 +25,11 @@ export default function PlaylistCard({ playlist }: PlaylistCardProps) {
             URL
           </span>
         )}
+        {playlist.source === 'oauth' && (
+          <span className="absolute top-2 left-2 bg-black/70 text-[#3ea6ff] text-[10px] px-1.5 py-0.5 rounded">
+            YouTube
+          </span>
+        )}
       </div>
       <div className="p-3 space-y-1">
         <h3 className="text-sm font-semibold text-white line-clamp-2 leading-snug">

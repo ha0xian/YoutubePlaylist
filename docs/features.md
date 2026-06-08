@@ -24,14 +24,14 @@ frontend code surface rather than planning documents.
 - **Playlist list/detail/import backend endpoints** -- `backend/api/urls.py` exposes `/api/playlists/`, `/api/playlists/<id>/`, and `/api/playlists/import/`.
 - **Public playlist URL import** -- `backend/api/youtube.py` imports playlist and video metadata from the YouTube Data API v3 using `YOUTUBE_API_KEY`.
 - **Database-backed playlists and videos** -- `backend/api/models.py` defines per-user `Playlist` rows and related `Video` rows with uniqueness constraints.
-- **Focused backend tests** -- `backend/api/tests.py` covers auth, playlist import, user scoping, re-import behavior, and import error handling.
+- **Per-user database notes** -- `backend/api/models.py` defines a `Note` model, `backend/api/views.py` provides a `PUT`/`GET` endpoint at `/api/notes/<video_id>/`, and the frontend `MarkdownNotes` component writes through it.
+- **YouTube OAuth integration** -- `backend/api/models.py` includes `YouTubeOAuthToken` for encrypted token storage; `backend/api/encryption.py` provides Fernet helpers; `backend/api/youtube_oauth.py` handles auth URL, code exchange, token refresh, channel profile, remote playlist listing, and selected OAuth playlist import; `/api/youtube/auth-url/`, `/api/youtube/callback/`, `/api/youtube/status/`, `/api/youtube/playlists/`, `/api/youtube/playlists/import/`, and `/api/youtube/disconnect/` endpoints are available in `backend/api/views.py`; the frontend exposes `Connect YouTube` / `Disconnect` controls, OAuth callback handling, and a remote playlist picker for selective import in `PlaylistBrowser.tsx`. OAuth callback links the account only and does not automatically import every YouTube playlist.
+- **Focused backend tests** -- `backend/api/tests.py` covers auth, playlist import, user scoping, re-import behavior, import error handling, encryption, OAuth auth-url, callback validation, successful OAuth callback, source preservation, disconnect, and multi-user isolation.
 
 ## Not Implemented On Master Yet
 
-- **YouTube OAuth integration** -- there is no OAuth token model, token encryption utility, OAuth callback/auth-url view, OAuth API client flow, or YouTube disconnect endpoint.
 - **Hidden playlist management** -- there are no active `Playlist` fields, serializers, views, routes, or frontend API calls for hide, unhide, hidden playlist listing, or hidden playlist styling.
-- **Playlist unlink/disconnect behavior** -- there are no backend routes or frontend controls for unlinking playlists or disconnecting a YouTube account.
-- **Per-user database notes** -- there is no `Note` model, note serializer, `/api/notes/<video_id>/` route, or frontend notes API client; notes remain browser-local.
+- **Playlist unlink/disconnect behavior** -- disconnect for YouTube OAuth is implemented, but per-playlist unlink and general disconnect for non-OAuth playlists is not available.
 - **Removed-video persistence and UI** -- the active `Video` model and serializers do not expose `is_removed`; the frontend types and video components do not render removed badges, dimmed styling, or watch warnings.
 - **Dark/light theme toggle** -- the UI has a fixed dark theme; no theme state, toggle control, or persisted theme preference exists.
 - **Search and filtering** -- there is no playlist or video search/filter UI or backend query support.
@@ -47,9 +47,12 @@ frontend code surface rather than planning documents.
 - Backend models: `backend/api/models.py`
 - Backend serializers: `backend/api/serializers.py`
 - YouTube import service: `backend/api/youtube.py`
+- YouTube OAuth service: `backend/api/youtube_oauth.py`
+- Backend encryption: `backend/api/encryption.py`
 - Backend tests: `backend/api/tests.py`
 - Frontend routes: `frontend/src/App.tsx`
 - Frontend playlist API client: `frontend/src/api/playlists.ts`
+- Frontend YouTube OAuth API client: `frontend/src/api/youtube.ts`
 - Frontend playlist browser/detail/watch pages: `frontend/src/pages/PlaylistBrowser.tsx`, `frontend/src/pages/PlaylistDetail.tsx`, `frontend/src/pages/WatchPage.tsx`
 - Frontend player, notes, playlist card, and video list components: `frontend/src/components/`
 - Frontend playlist/video types: `frontend/src/types/playlist.ts`
