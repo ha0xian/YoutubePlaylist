@@ -287,11 +287,17 @@ def youtube_remote_playlists(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def youtube_import_playlists(request):
-    """Import only selected remote YouTube playlists for the current user."""
-    playlist_ids = request.data.get("playlist_ids")
-    if not isinstance(playlist_ids, list) or not playlist_ids:
+    """Save the selected remote YouTube playlists for the current user."""
+    if "playlist_ids" not in request.data:
         return Response(
-            {"detail": "playlist_ids must be a non-empty list."},
+            {"detail": "playlist_ids is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    playlist_ids = request.data.get("playlist_ids")
+    if not isinstance(playlist_ids, list):
+        return Response(
+            {"detail": "playlist_ids must be a list."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     if not all(isinstance(playlist_id, str) for playlist_id in playlist_ids):

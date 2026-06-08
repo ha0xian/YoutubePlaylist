@@ -1377,7 +1377,7 @@ class YouTubeOAuthPlaylistSelectionTests(APITestCase):
     def test_selected_import_rejects_invalid_playlist_ids(self):
         with override_settings(**self.oauth_settings):
             self._connect_youtube()
-            for payload in ({}, {"playlist_ids": []}, {"playlist_ids": "PLoauth1"}):
+            for payload in ({}, {"playlist_ids": "PLoauth1"}):
                 response = self.client.post(
                     self.import_url,
                     payload,
@@ -1429,6 +1429,50 @@ class YouTubeOAuthPlaylistSelectionTests(APITestCase):
         )
         self.assertEqual(Video.objects.filter(playlist=url_playlist).count(), 1)
         self.assertEqual(Video.objects.filter(playlist=oauth_playlist).count(), 1)
+
+    def test_selected_import_removes_unchecked_oauth_playlists(self):
+        from .models import Playlist
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="OAuth Playlist 1",
+                channel_title="OAuth Channel",
+                source="oauth",
+            )
+            url_playlist = Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth2",
+                title="URL Playlist 2",
+                channel_title="URL Channel",
+                source="url",
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.post(
+                    self.import_url,
+                    {"playlist_ids": []},
+                    format="json",
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["imported_playlist_count"], 0)
+        self.assertFalse(
+            Playlist.objects.filter(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+            ).exists()
+        )
+        self.assertTrue(
+            Playlist.objects.filter(id=url_playlist.id, source="url").exists()
+        )
 
 
 class YouTubeOAuthDisconnectTests(APITestCase):

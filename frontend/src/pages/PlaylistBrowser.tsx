@@ -101,16 +101,13 @@ export default function PlaylistBrowser() {
     try {
       const data = await listYouTubePlaylists(token)
       setRemotePlaylists(data)
-      setSelectedRemoteIds((current) => {
-        const importableIds = new Set(
+      setSelectedRemoteIds(
+        new Set(
           data
-            .filter((playlist) => !playlist.isImported)
+            .filter((playlist) => playlist.isImported)
             .map((playlist) => playlist.youtubePlaylistId),
-        )
-        return new Set(
-          [...current].filter((playlistId) => importableIds.has(playlistId)),
-        )
-      })
+        ),
+      )
     } catch (err) {
       setRemoteError(
         err instanceof Error
@@ -273,8 +270,6 @@ export default function PlaylistBrowser() {
   }
 
   const toggleRemotePlaylist = (playlist: YouTubeRemotePlaylist) => {
-    if (playlist.isImported) return
-
     setSelectedRemoteIds((current) => {
       const next = new Set(current)
       if (next.has(playlist.youtubePlaylistId)) {
@@ -300,7 +295,7 @@ export default function PlaylistBrowser() {
   }
 
   const handleRemoteImport = async () => {
-    if (!token || selectedRemoteIds.size === 0) return
+    if (!token) return
 
     setIsImportingRemote(true)
     setRemoteError(null)
@@ -313,7 +308,13 @@ export default function PlaylistBrowser() {
       ])
       setPlaylists(refreshedLocal)
       setRemotePlaylists(refreshedRemote)
-      setSelectedRemoteIds(new Set())
+      setSelectedRemoteIds(
+        new Set(
+          refreshedRemote
+            .filter((playlist) => playlist.isImported)
+            .map((playlist) => playlist.youtubePlaylistId),
+        ),
+      )
     } catch (err) {
       setRemoteError(
         err instanceof Error
@@ -392,7 +393,7 @@ export default function PlaylistBrowser() {
                   YouTube playlists
                 </h2>
                 <p className="text-xs text-[#999] mt-1">
-                  Select playlists from your connected account to import.
+                  Check the playlists you want in your app, then save.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -407,12 +408,12 @@ export default function PlaylistBrowser() {
                 <button
                   type="button"
                   onClick={handleRemoteImport}
-                  disabled={selectedRemoteCount === 0 || isImportingRemote}
+                  disabled={isImportingRemote}
                   className="bg-[#3ea6ff] text-[#0f0f0f] text-sm px-4 py-1.5 rounded font-medium hover:bg-[#7ec5ff] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isImportingRemote
-                    ? 'Importing...'
-                    : `Import selected (${selectedRemoteCount})`}
+                    ? 'Saving...'
+                    : `Save (${selectedRemoteCount})`}
                 </button>
                 <button
                   type="button"
@@ -452,17 +453,15 @@ export default function PlaylistBrowser() {
                     <label
                       key={playlist.youtubePlaylistId}
                       className={`flex gap-3 rounded border p-3 transition-colors ${
-                        playlist.isImported
-                          ? 'border-[#333] bg-[#181818] opacity-70'
-                          : isSelected
-                            ? 'border-[#3ea6ff] bg-[#152333]'
-                            : 'border-[#333] bg-[#181818] hover:border-[#555]'
+                        isSelected
+                          ? 'border-[#3ea6ff] bg-[#152333]'
+                          : 'border-[#333] bg-[#181818] hover:border-[#555]'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        disabled={playlist.isImported || isImportingRemote}
+                        disabled={isImportingRemote}
                         onChange={() => toggleRemotePlaylist(playlist)}
                         className="mt-8 h-4 w-4 accent-[#3ea6ff]"
                       />
@@ -481,11 +480,6 @@ export default function PlaylistBrowser() {
                         <span className="block text-xs text-[#777] mt-1">
                           {playlist.videoCount} videos
                         </span>
-                        {playlist.isImported && (
-                          <span className="mt-2 inline-block text-xs text-[#3ea6ff]">
-                            Imported
-                          </span>
-                        )}
                       </span>
                     </label>
                   )

@@ -746,8 +746,8 @@ def import_selected_oauth_playlists_for_user(
     playlist_ids: list[str],
 ) -> tuple[list[Playlist], int]:
     """Import only the selected YouTube OAuth playlists for *user*."""
-    if not isinstance(playlist_ids, list) or not playlist_ids:
-        raise YouTubeOAuthError("playlist_ids must be a non-empty list.")
+    if not isinstance(playlist_ids, list):
+        raise YouTubeOAuthError("playlist_ids must be a list.")
 
     selected_ids: list[str] = []
     seen: set[str] = set()
@@ -760,10 +760,14 @@ def import_selected_oauth_playlists_for_user(
             seen.add(normalized)
 
     access_token = get_valid_access_token(user)
-    oauth_playlists = _fetch_oauth_playlists_by_ids(selected_ids, access_token)
     selected_set = set(selected_ids)
 
     imported: list[Playlist] = []
+    if not selected_ids:
+        Playlist.objects.filter(user=user, source="oauth").delete()
+        return imported, 0
+
+    oauth_playlists = _fetch_oauth_playlists_by_ids(selected_ids, access_token)
     for pl_data in oauth_playlists:
         pl_id = pl_data.get("id", "")
         if pl_id not in selected_set:
@@ -777,6 +781,10 @@ def import_selected_oauth_playlists_for_user(
                 user, pl_data, item_video_map, video_details
             )
         )
+
+    Playlist.objects.filter(user=user, source="oauth").exclude(
+        youtube_playlist_id__in=selected_set
+    ).delete()
 
     return imported, len(imported)
 
