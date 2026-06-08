@@ -91,7 +91,12 @@ def _google_post(url: str, data: dict, session=None) -> dict:
     unit tests can inject a mocked session.
     """
     s = session or requests
-    resp = s.post(url, data=data, timeout=30)
+    try:
+        resp = s.post(url, data=data, timeout=30)
+    except requests.RequestException as exc:
+        raise YouTubeOAuthError(
+            f"Google token endpoint request failed: {exc}"
+        ) from exc
     if not resp.ok:
         error_detail = "unknown error"
         try:
@@ -382,15 +387,20 @@ def fetch_oauth_channel_profile(access_token: str, session=None) -> dict:
     Returns ``{"channel_id": "...", "channel_title": "..."}``.
     """
     s = session or requests
-    resp = s.get(
-        "https://www.googleapis.com/youtube/v3/channels",
-        params={
-            "part": "snippet",
-            "mine": "true",
-        },
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=30,
-    )
+    try:
+        resp = s.get(
+            "https://www.googleapis.com/youtube/v3/channels",
+            params={
+                "part": "snippet",
+                "mine": "true",
+            },
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise YouTubeOAuthError(
+            f"YouTube channels.list request failed: {exc}"
+        ) from exc
     if not resp.ok:
         raise YouTubeOAuthError(
             f"YouTube channels.list returned {resp.status_code}: "
@@ -417,12 +427,17 @@ def fetch_oauth_channel_profile(access_token: str, session=None) -> dict:
 def _oauth_get(url: str, params: dict, access_token: str, session=None) -> dict:
     """GET a YouTube Data API v3 endpoint using OAuth Bearer authorization."""
     s = session or requests
-    resp = s.get(
-        url,
-        params=params,
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=30,
-    )
+    try:
+        resp = s.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        raise YouTubeAPIError(
+            f"YouTube API request to {url} failed: {exc}"
+        ) from exc
 
     endpoint = url.rstrip("/").rsplit("/", 1)[-1]
 
