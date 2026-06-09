@@ -22,6 +22,14 @@ export interface Playlist {
   publishedAt: string | null
   /** ``"url"`` — imported from a public URL; ``"oauth"`` — imported via YouTube OAuth. */
   source: 'url' | 'oauth' | string
+  /** Whether the playlist has been unlinked from the user's visible collection. */
+  isUnlinked: boolean
+}
+
+export interface PlaylistUnlinkResponse {
+  id: number
+  isUnlinked: true
+  detail: string
 }
 
 export interface PlaylistDetail extends Playlist {

@@ -78,7 +78,7 @@ def current_user(request):
 @permission_classes([IsAuthenticated])
 def playlist_list(request):
     """List playlists owned by the current user."""
-    playlists = Playlist.objects.filter(user=request.user)
+    playlists = Playlist.objects.filter(user=request.user, is_unlinked=False)
     return Response(PlaylistSerializer(playlists, many=True).data)
 
 
@@ -87,7 +87,9 @@ def playlist_list(request):
 def playlist_detail(request, pk):
     """Get a single playlist owned by the current user."""
     try:
-        playlist = Playlist.objects.get(pk=pk, user=request.user)
+        playlist = Playlist.objects.get(
+            pk=pk, user=request.user, is_unlinked=False
+        )
     except Playlist.DoesNotExist:
         return Response(
             {"detail": "Playlist not found."},
@@ -129,7 +131,9 @@ def playlist_import(request):
 def playlist_refresh(request, pk):
     """Reimport a playlist from YouTube to pick up current video changes."""
     try:
-        playlist = Playlist.objects.get(pk=pk, user=request.user)
+        playlist = Playlist.objects.get(
+            pk=pk, user=request.user, is_unlinked=False
+        )
     except Playlist.DoesNotExist:
         return Response(
             {"detail": "Playlist not found."},
@@ -166,6 +170,35 @@ def playlist_refresh(request, pk):
             )
 
     return Response(PlaylistDetailSerializer(playlist).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def playlist_unlink(request, pk):
+    """Unlink a playlist from the current user's visible collection.
+
+    Sets ``is_unlinked=True`` for the matching playlist row owned by the
+    current user.  The playlist row and related video/note rows are
+    preserved in the database.
+    """
+    try:
+        playlist = Playlist.objects.get(
+            pk=pk, user=request.user, is_unlinked=False
+        )
+    except Playlist.DoesNotExist:
+        return Response(
+            {"detail": "Playlist not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    playlist.is_unlinked = True
+    playlist.save(update_fields=["is_unlinked", "updated_at"])
+
+    return Response({
+        "id": playlist.id,
+        "is_unlinked": True,
+        "detail": "Playlist unlinked.",
+    })
 
 
 @api_view(["GET", "PUT"])
@@ -378,8 +411,10 @@ def youtube_import_playlists(request):
 def youtube_disconnect(request):
     """Disconnect the current user's YouTube OAuth account.
 
-    Deletes the user's OAuth token row and removes only playlists with
-    ``source="oauth"``.  URL-linked playlists and notes are preserved.
+    Sets linked OAuth playlists to ``is_unlinked=True`` so they are
+    removed from the visible collection while preserving cached
+    playlist/video/note data.  Only the OAuth token row is deleted.
+    URL-linked playlists and notes are preserved.
     """
     try:
         token_row = YouTubeOAuthToken.objects.get(user=request.user)
@@ -389,10 +424,12 @@ def youtube_disconnect(request):
             "removed_playlist_count": 0,
         })
 
-    # Count and delete only OAuth-sourced playlists (cascade deletes videos)
-    oauth_playlists = request.user.playlists.filter(source="oauth")
+    # Soft-unlink linked OAuth playlists instead of deleting them
+    oauth_playlists = request.user.playlists.filter(
+        source="oauth", is_unlinked=False
+    )
     removed_count = oauth_playlists.count()
-    oauth_playlists.delete()
+    oauth_playlists.update(is_unlinked=True)
 
     token_row.delete()
 

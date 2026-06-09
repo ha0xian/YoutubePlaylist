@@ -317,6 +317,7 @@ def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
                 ),
                 "video_count": content_details.get("itemCount", 0),
                 "source": "url",
+                "is_unlinked": False,
             },
         )
 

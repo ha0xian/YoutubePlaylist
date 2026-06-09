@@ -502,6 +502,42 @@ class PlaylistImportSuccessTests(APITestCase):
     @patch("api.youtube._fetch_video_details")
     @patch("api.youtube._fetch_playlist_items")
     @patch("api.youtube._fetch_playlist_snippet")
+    def test_reimport_relinks_unlinked_playlist(self, mock_snippet, mock_items, mock_videos):
+        """Reimporting a previously unlinked URL playlist sets is_unlinked=False."""
+        from .models import Playlist
+
+        mock_snippet.return_value = _playlist_snippet(title="First Import")
+        mock_items.return_value = _playlist_items()
+        mock_videos.return_value = _video_details(["vid00000001", "vid00000002"])
+
+        # First import
+        response1 = self._post_import()
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Manually unlink
+        playlist = Playlist.objects.get(id=response1.data["id"])
+        playlist.is_unlinked = True
+        playlist.save()
+
+        # Reimport — should relink
+        mock_snippet.return_value = _playlist_snippet(title="Relinked Title")
+        response2 = self._post_import()
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        self.assertEqual(response2.data["title"], "Relinked Title")
+
+        playlist.refresh_from_db()
+        self.assertFalse(playlist.is_unlinked)
+        # Still only one row
+        self.assertEqual(
+            Playlist.objects.filter(
+                user=self.user, youtube_playlist_id="PLtest123456789"
+            ).count(),
+            1,
+        )
+
+    @patch("api.youtube._fetch_video_details")
+    @patch("api.youtube._fetch_playlist_items")
+    @patch("api.youtube._fetch_playlist_snippet")
     def test_reimport_revives_removed_video(self, mock_snippet, mock_items, mock_videos):
         """A previously removed video is revived when it reappears in a reimport."""
         mock_snippet.return_value = _playlist_snippet()
@@ -737,6 +773,176 @@ class PlaylistDetailTests(APITestCase):
     def test_detail_requires_auth(self):
         response = self.client.get(f"/api/playlists/{self.p_a.id}/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_detail_returns_404_for_unlinked_playlist(self):
+        """Unlinked playlists return 404 even for the owning user."""
+        from .models import Playlist
+
+        unlinked = Playlist.objects.create(
+            user=self.user_a,
+            youtube_playlist_id="PLunlinked",
+            title="Unlinked Playlist",
+            channel_title="ChanA",
+            thumbnail_url="https://example.com/thumb.jpg",
+            is_unlinked=True,
+        )
+        response = self.client.get(
+            f"/api/playlists/{unlinked.id}/",
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class PlaylistUnlinkTests(APITestCase):
+    """Tests for POST /api/playlists/<id>/unlink/"""
+
+    def setUp(self):
+        self.user_a = User.objects.create_user(
+            username="unlinkA", password="AStrongP4ssword!"
+        )
+        self.user_b = User.objects.create_user(
+            username="unlinkB", password="AStrongP4ssword!"
+        )
+        self.token_a = Token.objects.create(user=self.user_a)
+        self.token_b = Token.objects.create(user=self.user_b)
+
+        from .models import Playlist, Video
+
+        self.playlist = Playlist.objects.create(
+            user=self.user_a,
+            youtube_playlist_id="PLunlink1",
+            title="Playlist to unlink",
+            channel_title="ChanA",
+            thumbnail_url="https://example.com/thumb.jpg",
+        )
+        self.video = Video.objects.create(
+            playlist=self.playlist,
+            youtube_video_id="vid-unlink-1",
+            position=0,
+            title="Video",
+            channel_title="ChanA",
+            duration="3:00",
+            thumbnail_url="https://example.com/vid.jpg",
+        )
+
+    def _unlink_url(self, pk):
+        return f"/api/playlists/{pk}/unlink/"
+
+    def test_unlink_requires_auth(self):
+        response = self.client.post(self._unlink_url(self.playlist.id))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_unlink_sets_is_unlinked_and_preserves_data(self):
+        """Unlink sets is_unlinked=True but keeps playlist and video rows."""
+        from .models import Playlist, Video
+
+        response = self.client.post(
+            self._unlink_url(self.playlist.id),
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], self.playlist.id)
+        self.assertTrue(response.data["is_unlinked"])
+        self.assertEqual(response.data["detail"], "Playlist unlinked.")
+
+        # Playlist row still exists
+        self.playlist.refresh_from_db()
+        self.assertTrue(self.playlist.is_unlinked)
+
+        # Video row still exists
+        self.assertTrue(
+            Video.objects.filter(id=self.video.id).exists()
+        )
+        self.assertEqual(
+            Playlist.objects.filter(user=self.user_a).count(), 1
+        )
+
+    def test_unlink_returns_404_for_other_user_playlist(self):
+        """User cannot unlink another user's playlist — returns 404."""
+        response = self.client.post(
+            self._unlink_url(self.playlist.id),
+            HTTP_AUTHORIZATION=f"Token {self.token_b.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Playlist still linked for owner
+        self.playlist.refresh_from_db()
+        self.assertFalse(self.playlist.is_unlinked)
+
+    def test_unlink_already_unlinked_returns_404(self):
+        """Unlinking an already unlinked playlist also returns 404."""
+        self.playlist.is_unlinked = True
+        self.playlist.save()
+
+        response = self.client.post(
+            self._unlink_url(self.playlist.id),
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_unlink_does_not_delete_notes(self):
+        """Unlink preserves notes that share the same user."""
+        from .models import Note
+
+        note = Note.objects.create(
+            user=self.user_a,
+            youtube_video_id=self.video.youtube_video_id,
+            content="test note",
+        )
+
+        response = self.client.post(
+            self._unlink_url(self.playlist.id),
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertTrue(
+            Note.objects.filter(id=note.id).exists()
+        )
+        self.assertEqual(
+            Note.objects.get(id=note.id).content, "test note"
+        )
+
+
+class PlaylistListUnlinkedTests(APITestCase):
+    """List endpoint excludes unlinked playlists."""
+
+    def setUp(self):
+        self.list_url = "/api/playlists/"
+        self.user = User.objects.create_user(
+            username="listfilter", password="AStrongP4ssword!"
+        )
+        self.token = Token.objects.create(user=self.user)
+
+        from .models import Playlist
+
+        self.linked = Playlist.objects.create(
+            user=self.user,
+            youtube_playlist_id="PLlinked",
+            title="Linked Playlist",
+            channel_title="Chan",
+            thumbnail_url="https://example.com/thumb.jpg",
+            is_unlinked=False,
+        )
+        self.unlinked = Playlist.objects.create(
+            user=self.user,
+            youtube_playlist_id="PLunlinked",
+            title="Unlinked Playlist",
+            channel_title="Chan",
+            thumbnail_url="https://example.com/thumb.jpg",
+            is_unlinked=True,
+        )
+
+    def test_list_excludes_unlinked_playlists(self):
+        response = self.client.get(
+            self.list_url,
+            HTTP_AUTHORIZATION=f"Token {self.token.key}",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.linked.id)
+        self.assertEqual(response.data[0]["youtube_playlist_id"], "PLlinked")
 
 
 class NoteDetailTests(APITestCase):
@@ -1615,12 +1821,76 @@ class YouTubeOAuthPlaylistSelectionTests(APITestCase):
         incoming = Video.objects.get(playlist=playlist, youtube_video_id="vid-oauth-1")
         self.assertFalse(incoming.is_removed)
 
-    def test_selected_import_removes_unchecked_oauth_playlists(self):
+    def test_selected_import_relinks_unlinked_oauth_playlist(self):
+        """Selecting an unlinked OAuth playlist sets is_unlinked=False."""
+        from .models import Playlist
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            unlinked = Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="Was Unlinked",
+                channel_title="OAuth Channel",
+                source="oauth",
+                is_unlinked=True,
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.post(
+                    self.import_url,
+                    {"playlist_ids": ["PLoauth1"]},
+                    format="json",
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["imported_playlist_count"], 1)
+
+        unlinked.refresh_from_db()
+        self.assertFalse(unlinked.is_unlinked)
+
+    def test_remote_playlists_excludes_unlinked_from_imported(self):
+        """Unlinked local OAuth playlists are not shown as imported."""
         from .models import Playlist
 
         with override_settings(**self.oauth_settings):
             self._connect_youtube()
             Playlist.objects.create(
+                user=self.user,
+                youtube_playlist_id="PLoauth1",
+                title="Unlinked OAuth",
+                channel_title="OAuth Channel",
+                source="oauth",
+                is_unlinked=True,
+            )
+
+            from . import youtube_oauth as oauth_mod
+
+            mock_session = MagicMock()
+            mock_session.get.side_effect = self._mock_youtube_get
+            with patch.object(oauth_mod, "requests", mock_session):
+                response = self.client.get(
+                    self.remote_url,
+                    **self._auth_header(),
+                )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        first = response.data[0]
+        self.assertEqual(first["youtube_playlist_id"], "PLoauth1")
+        self.assertFalse(first["is_imported"])
+
+    def test_selected_import_soft_unlinks_unchecked_oauth_playlists(self):
+        from .models import Playlist
+
+        with override_settings(**self.oauth_settings):
+            self._connect_youtube()
+            oauth_pl = Playlist.objects.create(
                 user=self.user,
                 youtube_playlist_id="PLoauth1",
                 title="OAuth Playlist 1",
@@ -1649,12 +1919,19 @@ class YouTubeOAuthPlaylistSelectionTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["imported_playlist_count"], 0)
-        self.assertFalse(
+
+        # Unchecked OAuth playlist is soft-unlinked, not deleted
+        oauth_pl.refresh_from_db()
+        self.assertTrue(oauth_pl.is_unlinked)
+        self.assertTrue(
             Playlist.objects.filter(
                 user=self.user,
                 youtube_playlist_id="PLoauth1",
             ).exists()
         )
+        # URL playlist preserved and linked
+        url_playlist.refresh_from_db()
+        self.assertFalse(url_playlist.is_unlinked)
         self.assertTrue(
             Playlist.objects.filter(id=url_playlist.id, source="url").exists()
         )
@@ -1691,9 +1968,10 @@ class YouTubeOAuthDisconnectTests(APITestCase):
         self.assertFalse(response.data["connected"])
         self.assertEqual(response.data["removed_playlist_count"], 0)
 
-    def test_disconnect_removes_oauth_playlists_only(self):
-        """Disconnect deletes only source='oauth' playlists."""
-        from .models import Playlist, YouTubeOAuthToken
+    def test_disconnect_soft_unlinks_oauth_playlists(self):
+        """Disconnect sets is_unlinked=True on linked OAuth playlists
+        without deleting cached rows, videos, or notes."""
+        from .models import Playlist, Video, YouTubeOAuthToken, Note
         from .encryption import encrypt_token
 
         # Create OAuth token
@@ -1724,8 +2002,18 @@ class YouTubeOAuthDisconnectTests(APITestCase):
             source="url",
         )
 
+        # Create videos for the OAuth playlist
+        oauth_video = Video.objects.create(
+            playlist=oauth_pl,
+            youtube_video_id="vid-oauth-1",
+            position=0,
+            title="OAuth Video",
+            channel_title="OAuth Channel",
+            duration="3:00",
+            thumbnail_url="https://example.com/vid.jpg",
+        )
+
         # Create a note (should not be deleted)
-        from .models import Note
         note = Note.objects.create(
             user=self.user,
             youtube_video_id="some-video-id",
@@ -1742,12 +2030,20 @@ class YouTubeOAuthDisconnectTests(APITestCase):
         self.assertFalse(response.data["connected"])
         self.assertEqual(response.data["removed_playlist_count"], 1)
 
-        # OAuth playlist deleted, URL playlist preserved
-        self.assertFalse(
+        # OAuth playlist is soft-unlinked, not deleted
+        oauth_pl.refresh_from_db()
+        self.assertTrue(oauth_pl.is_unlinked)
+        self.assertTrue(
             Playlist.objects.filter(id=oauth_pl.id).exists()
         )
+        # URL playlist preserved
         self.assertTrue(
             Playlist.objects.filter(id=url_pl.id).exists()
+        )
+
+        # Video rows preserved
+        self.assertTrue(
+            Video.objects.filter(id=oauth_video.id).exists()
         )
 
         # OAuth token deleted
@@ -1783,7 +2079,7 @@ class YouTubeOAuthDisconnectTests(APITestCase):
             )
 
         # OAuth playlist for each user
-        Playlist.objects.create(
+        a_pl = Playlist.objects.create(
             user=self.user,
             youtube_playlist_id="PL-user-a",
             title="A OAuth",
@@ -1791,7 +2087,7 @@ class YouTubeOAuthDisconnectTests(APITestCase):
             thumbnail_url="https://example.com/a.jpg",
             source="oauth",
         )
-        Playlist.objects.create(
+        b_pl = Playlist.objects.create(
             user=user_b,
             youtube_playlist_id="PL-user-b",
             title="B OAuth",
@@ -1813,8 +2109,14 @@ class YouTubeOAuthDisconnectTests(APITestCase):
         self.assertTrue(
             YouTubeOAuthToken.objects.filter(user=user_b).exists()
         )
+        b_pl.refresh_from_db()
+        self.assertFalse(b_pl.is_unlinked)
+
+        # User A's playlist is soft unlinked but not deleted
+        a_pl.refresh_from_db()
+        self.assertTrue(a_pl.is_unlinked)
         self.assertTrue(
-            Playlist.objects.filter(user=user_b, source="oauth").exists()
+            Playlist.objects.filter(user=self.user, source="oauth").exists()
         )
 
         # User A's token is gone

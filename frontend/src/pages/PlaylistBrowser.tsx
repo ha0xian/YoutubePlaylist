@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listPlaylists, importPlaylist } from '../api/playlists'
+import { listPlaylists, importPlaylist, unlinkPlaylist } from '../api/playlists'
 import {
   getYouTubeStatus,
   getYouTubeAuthUrl,
@@ -43,6 +43,7 @@ export default function PlaylistBrowser() {
   const [isLoadingRemote, setIsLoadingRemote] = useState(false)
   const [isImportingRemote, setIsImportingRemote] = useState(false)
   const [remoteError, setRemoteError] = useState<string | null>(null)
+  const [unlinkingId, setUnlinkingId] = useState<number | null>(null)
   const fetchVersionRef = useRef(0)
 
   // ── Load playlists ──────────────────────────────────────────────────────
@@ -326,6 +327,24 @@ export default function PlaylistBrowser() {
     }
   }
 
+  const handlePlaylistUnlink = async (playlist: Playlist) => {
+    if (!token || unlinkingId) return
+
+    setUnlinkingId(playlist.id)
+    setError(null)
+
+    try {
+      await unlinkPlaylist(token, playlist.id)
+      setPlaylists((prev) => prev.filter((p) => p.id !== playlist.id))
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to unlink playlist.',
+      )
+    } finally {
+      setUnlinkingId(null)
+    }
+  }
+
   const isOauthConnected = oauthStatus?.connected === true
   const selectedRemoteCount = selectedRemoteIds.size
 
@@ -544,7 +563,12 @@ export default function PlaylistBrowser() {
         {!isLoading && !error && playlists.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 p-6">
             {playlists.map((pl) => (
-              <PlaylistCard key={pl.id} playlist={pl} />
+              <PlaylistCard
+                key={pl.id}
+                playlist={pl}
+                onUnlink={handlePlaylistUnlink}
+                isUnlinking={unlinkingId === pl.id}
+              />
             ))}
           </div>
         )}

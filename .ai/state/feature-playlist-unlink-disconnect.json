@@ -1,7 +1,7 @@
 {
   "feature": "feature-playlist-unlink-disconnect",
   "plan": ".ai/plans/feature-playlist-unlink-disconnect.md",
-  "status": "planned",
+  "status": "ready_for_review",
   "open_questions": [],
   "blocked_reason": null
 }

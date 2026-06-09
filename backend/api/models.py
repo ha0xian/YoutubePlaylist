@@ -12,6 +12,7 @@ class Playlist(models.Model):
     published_at = models.DateTimeField(null=True, blank=True)
     video_count = models.PositiveIntegerField(default=0)
     source = models.CharField(max_length=20, default="url")
+    is_unlinked = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
