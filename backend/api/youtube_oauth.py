@@ -953,6 +953,32 @@ def import_oauth_playlists_for_user(
     return imported_count
 
 
+def refresh_oauth_playlist_for_user(user: User, playlist: Playlist) -> Playlist:
+    """Refresh a single OAuth-sourced playlist from YouTube.
+
+    Fetches current playlist metadata, items, and video details, then
+    reconciles the local video rows.  Returns the updated playlist.
+    """
+    access_token = get_valid_access_token(user)
+
+    playlist_data_list = _fetch_oauth_playlists_by_ids(
+        [playlist.youtube_playlist_id], access_token
+    )
+    if not playlist_data_list:
+        raise YouTubeAPIError(
+            "Playlist not found on YouTube. "
+            "It may have been deleted or made private."
+        )
+
+    playlist_data = playlist_data_list[0]
+    item_video_map, video_details = _playlist_video_payloads(
+        playlist.youtube_playlist_id, access_token
+    )
+    return _persist_oauth_playlist(
+        user, playlist_data, item_video_map, video_details
+    )
+
+
 def _create_videos(
     playlist: Playlist,
     item_video_map: dict[int, dict],

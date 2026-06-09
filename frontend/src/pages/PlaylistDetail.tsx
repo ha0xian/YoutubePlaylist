@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
-import { getPlaylist } from '../api/playlists'
+import { getPlaylist, refreshPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
 import VideoListItem from '../components/VideoListItem'
@@ -18,6 +18,7 @@ export default function PlaylistDetail() {
   const [isLoading, setIsLoading] = useState(canFetch)
   const [error, setError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const fetchVersionRef = useRef(0)
 
   useEffect(() => {
@@ -45,6 +46,23 @@ export default function PlaylistDetail() {
       fetchVersionRef.current = -1
     }
   }, [token, id])
+
+  const handleRefresh = () => {
+    if (!id || !token || isRefreshing) return
+
+    setIsRefreshing(true)
+    refreshPlaylist(token, id)
+      .then((data) => {
+        setPlaylist(data)
+        setIsRefreshing(false)
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : 'Failed to refresh playlist.',
+        )
+        setIsRefreshing(false)
+      })
+  }
 
   // Auto-select first video when playlist loads, fall back if selected is no longer in list
   const effectiveVideoId = (() => {
@@ -123,7 +141,31 @@ export default function PlaylistDetail() {
               </p>
             </div>
           </div>
-          <UserMenu />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
+              title="Refresh playlist from YouTube"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={isRefreshing ? 'animate-spin' : ''}
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <UserMenu />
+          </div>
         </div>
         {playlist.description && (
           <p className="text-sm text-[#999] px-6 pb-3 truncate">{playlist.description}</p>
