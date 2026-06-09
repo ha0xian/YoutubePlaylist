@@ -39,6 +39,8 @@ frontend code surface rather than planning documents.
 - **AI/Gemini analysis and chat** -- there are no backend or frontend modules for AI analysis, summaries, or chat.
 - **Production CORS hardening** -- `backend/config/settings.py` still sets `CORS_ALLOW_ALL_ORIGINS = True`.
 - **Settings** -- Different settings option on layout
+- User is able to insert the timestamp of the video into the note, when type /time, and the timestamp in the preview, is linked to the video of that time
+- User is able to combine all of the notes of the playlist into 1 notes, the title of the note will be the name of the video, and linked to the video
 
 ## Code Surface Checked
 
