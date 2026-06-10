@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { listPlaylists, importPlaylist, unlinkPlaylist } from '../api/playlists'
+import {
+  listPlaylists,
+  importPlaylist,
+  refreshPlaylist,
+  unlinkPlaylist,
+} from '../api/playlists'
 import {
   getYouTubeStatus,
   getYouTubeAuthUrl,
@@ -43,7 +48,11 @@ export default function PlaylistBrowser() {
   const [isLoadingRemote, setIsLoadingRemote] = useState(false)
   const [isImportingRemote, setIsImportingRemote] = useState(false)
   const [remoteError, setRemoteError] = useState<string | null>(null)
+  const [refreshingId, setRefreshingId] = useState<number | null>(null)
   const [unlinkingId, setUnlinkingId] = useState<number | null>(null)
+  const [openPlaylistMenuId, setOpenPlaylistMenuId] = useState<number | null>(
+    null,
+  )
   const fetchVersionRef = useRef(0)
 
   // ── Load playlists ──────────────────────────────────────────────────────
@@ -327,10 +336,34 @@ export default function PlaylistBrowser() {
     }
   }
 
+  const handlePlaylistRefresh = async (playlist: Playlist) => {
+    if (!token || refreshingId || unlinkingId) return
+
+    setRefreshingId(playlist.id)
+    setOpenPlaylistMenuId(null)
+    setError(null)
+
+    try {
+      const refreshed = await refreshPlaylist(token, playlist.id)
+      setPlaylists((prev) =>
+        prev.map((current) =>
+          current.id === refreshed.id ? refreshed : current,
+        ),
+      )
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to refresh playlist.',
+      )
+    } finally {
+      setRefreshingId(null)
+    }
+  }
+
   const handlePlaylistUnlink = async (playlist: Playlist) => {
-    if (!token || unlinkingId) return
+    if (!token || unlinkingId || refreshingId) return
 
     setUnlinkingId(playlist.id)
+    setOpenPlaylistMenuId(null)
     setError(null)
 
     try {
@@ -343,6 +376,12 @@ export default function PlaylistBrowser() {
     } finally {
       setUnlinkingId(null)
     }
+  }
+
+  const handlePlaylistMenuToggle = (playlist: Playlist) => {
+    setOpenPlaylistMenuId((currentId) =>
+      currentId === playlist.id ? null : playlist.id,
+    )
   }
 
   const isOauthConnected = oauthStatus?.connected === true
@@ -566,8 +605,13 @@ export default function PlaylistBrowser() {
               <PlaylistCard
                 key={pl.id}
                 playlist={pl}
+                onRefresh={handlePlaylistRefresh}
                 onUnlink={handlePlaylistUnlink}
+                isRefreshing={refreshingId === pl.id}
                 isUnlinking={unlinkingId === pl.id}
+                isMenuOpen={openPlaylistMenuId === pl.id}
+                onMenuToggle={handlePlaylistMenuToggle}
+                onMenuClose={() => setOpenPlaylistMenuId(null)}
               />
             ))}
           </div>
