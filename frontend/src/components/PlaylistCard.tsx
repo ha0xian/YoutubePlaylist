@@ -29,9 +29,9 @@ export default function PlaylistCard({
   return (
     <div
       onClick={() => navigate(`/playlist/${playlist.id}`)}
-      className="bg-[#1a1a1a] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-[#cc0000] hover:ring-offset-2 hover:ring-offset-[#0f0f0f] group relative"
+      className="bg-[#1a1a1a] rounded-lg cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-[#cc0000] hover:ring-offset-2 hover:ring-offset-[#0f0f0f] group relative"
     >
-      <div style={{ position: 'relative' }}>
+      <div className="relative overflow-hidden rounded-t-lg">
         <img
           src={playlist.thumbnailUrl}
           alt={playlist.title}
