@@ -64,6 +64,18 @@ export function getPlaylist(
     .then((data) => normalizeKeys<PlaylistDetail>(data))
 }
 
+export function refreshPlaylist(
+  token: string,
+  id: string | number,
+): Promise<PlaylistDetail> {
+  return fetch(`${API_BASE_URL}/api/playlists/${id}/refresh/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<PlaylistDetail>(data))
+}
+
 export function importPlaylist(
   token: string,
   url: string,

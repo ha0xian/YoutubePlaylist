@@ -17,6 +17,8 @@
   - SQLite database (`backend/db.sqlite3`)
   - Run: `python manage.py runserver`
   - Test: `python manage.py test api`
+  - Migrate: `python manage.py migrate`
+  - **After any model change (adding/removing/altering fields), always run `python manage.py migrate`** to apply migrations to the development database. If the migration fails, fix the migration file before proceeding — an unmigrated model change will crash the running server.
 - **Frontend:** React + Vite + TypeScript in `frontend/`
   - Run: `npm run dev`
   - Build: `npm run build`

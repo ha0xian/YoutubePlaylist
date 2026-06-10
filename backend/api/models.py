@@ -40,6 +40,7 @@ class Video(models.Model):
     thumbnail_url = models.URLField(max_length=500, blank=True)
     published_at = models.DateTimeField(null=True, blank=True)
     view_count = models.PositiveBigIntegerField(default=0)
+    is_removed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

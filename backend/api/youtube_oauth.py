@@ -32,6 +32,7 @@ from .youtube import (
     _fetch_video_details,
     _parse_iso_duration,
     _iso_to_datetime,
+    reconcile_playlist_videos,
 )
 
 # ---------------------------------------------------------------------------
@@ -751,8 +752,7 @@ def _persist_oauth_playlist(
                 defaults=defaults,
             )
 
-        playlist.videos.all().delete()
-        _create_videos(playlist, item_video_map, video_details)
+        reconcile_playlist_videos(playlist, item_video_map, video_details)
         return playlist
 
 
@@ -922,8 +922,7 @@ def import_oauth_playlists_for_user(
                 )
 
                 # Update videos for URL playlists too
-                existing.videos.all().delete()
-                _create_videos(existing, item_video_map, video_details)
+                reconcile_playlist_videos(existing, item_video_map, video_details)
                 imported_count += 1
                 continue
 
@@ -947,12 +946,37 @@ def import_oauth_playlists_for_user(
                 defaults=defaults,
             )
 
-            # Delete stale videos and re-create
-            playlist.videos.all().delete()
-            _create_videos(playlist, item_video_map, video_details)
+            # Reconcile videos — update/create incoming, mark missing as removed
+            reconcile_playlist_videos(playlist, item_video_map, video_details)
             imported_count += 1
 
     return imported_count
+
+
+def refresh_oauth_playlist_for_user(user: User, playlist: Playlist) -> Playlist:
+    """Refresh a single OAuth-sourced playlist from YouTube.
+
+    Fetches current playlist metadata, items, and video details, then
+    reconciles the local video rows.  Returns the updated playlist.
+    """
+    access_token = get_valid_access_token(user)
+
+    playlist_data_list = _fetch_oauth_playlists_by_ids(
+        [playlist.youtube_playlist_id], access_token
+    )
+    if not playlist_data_list:
+        raise YouTubeAPIError(
+            "Playlist not found on YouTube. "
+            "It may have been deleted or made private."
+        )
+
+    playlist_data = playlist_data_list[0]
+    item_video_map, video_details = _playlist_video_payloads(
+        playlist.youtube_playlist_id, access_token
+    )
+    return _persist_oauth_playlist(
+        user, playlist_data, item_video_map, video_details
+    )
 
 
 def _create_videos(

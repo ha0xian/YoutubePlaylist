@@ -1,0 +1,7 @@
+{
+  "feature": "fix-removed-video-persistence-ui",
+  "plan": ".ai/plans/fix-removed-video-persistence-ui.md",
+  "status": "ready_for_review",
+  "open_questions": [],
+  "blocked_reason": null
+}

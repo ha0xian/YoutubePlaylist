@@ -8,6 +8,7 @@ export interface Video {
   thumbnailUrl: string
   publishedAt: string | null
   viewCount: number
+  isRemoved: boolean
 }
 
 export interface Playlist {

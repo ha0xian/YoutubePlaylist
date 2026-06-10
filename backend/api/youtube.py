@@ -182,6 +182,67 @@ def _iso_to_datetime(iso_str: str | None):
         return None
 
 
+def reconcile_playlist_videos(
+    playlist: Playlist,
+    item_video_map: dict[int, dict],
+    video_details: dict[str, dict],
+) -> None:
+    """Create or update videos for *playlist* from the collected item/video data.
+
+    Incoming video IDs are saved or updated with ``is_removed=False``.
+    Existing videos whose YouTube IDs are **not** in *item_video_map* are
+    marked ``is_removed=True``.  No rows are deleted.
+    """
+    incoming_ids: set[str] = set()
+    for item in item_video_map.values():
+        vid = item.get("video_id")
+        if vid:
+            incoming_ids.add(vid)
+
+    # 1. Upsert incoming videos
+    for position, item in sorted(item_video_map.items()):
+        vid = item["video_id"]
+        detail = video_details.get(vid, {})
+        detail_snippet = detail.get("snippet", {})
+        detail_content = detail.get("contentDetails", {})
+        detail_stats = detail.get("statistics", {})
+
+        duration = _parse_iso_duration(
+            detail_content.get("duration", "PT0S")
+        )
+
+        defaults = {
+            "position": position,
+            "title": detail_snippet.get("title") or item["title"],
+            "channel_title": detail_snippet.get("channelTitle")
+            or item["channel_title"],
+            "duration": duration,
+            "thumbnail_url": (
+                detail_snippet.get("thumbnails", {})
+                .get("default", {})
+                .get("url", "")
+            )
+            or item["thumbnail_url"],
+            "published_at": _iso_to_datetime(
+                detail_snippet.get("publishedAt")
+                or item.get("published_at")
+            ),
+            "view_count": int(detail_stats.get("viewCount", 0)),
+            "is_removed": False,
+        }
+
+        Video.objects.update_or_create(
+            playlist=playlist,
+            youtube_video_id=vid,
+            defaults=defaults,
+        )
+
+    # 2. Mark stale videos (not in incoming set) as removed
+    playlist.videos.exclude(
+        youtube_video_id__in=list(incoming_ids) if incoming_ids else ["__sentinel__"]
+    ).update(is_removed=True)
+
+
 def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
     """Import or re-import a public YouTube playlist for the given user.
 
@@ -259,40 +320,7 @@ def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
             },
         )
 
-        # Delete stale videos before re-creating
-        playlist.videos.all().delete()
-
-        # Rebuild videos
-        for position, item in sorted(item_video_map.items()):
-            vid = item["video_id"]
-            detail = video_details.get(vid, {})
-            detail_snippet = detail.get("snippet", {})
-            detail_content = detail.get("contentDetails", {})
-            detail_stats = detail.get("statistics", {})
-
-            duration = _parse_iso_duration(
-                detail_content.get("duration", "PT0S")
-            )
-
-            Video.objects.create(
-                playlist=playlist,
-                youtube_video_id=vid,
-                position=position,
-                title=detail_snippet.get("title") or item["title"],
-                channel_title=detail_snippet.get("channelTitle")
-                or item["channel_title"],
-                duration=duration,
-                thumbnail_url=(
-                    detail_snippet.get("thumbnails", {})
-                    .get("default", {})
-                    .get("url", "")
-                )
-                or item["thumbnail_url"],
-                published_at=_iso_to_datetime(
-                    detail_snippet.get("publishedAt")
-                    or item.get("published_at")
-                ),
-                view_count=int(detail_stats.get("viewCount", 0)),
-            )
+        # Reconcile videos — update/create incoming, mark missing as removed
+        reconcile_playlist_videos(playlist, item_video_map, video_details)
 
     return playlist, created
