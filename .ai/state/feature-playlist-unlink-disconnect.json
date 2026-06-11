@@ -2,6 +2,7 @@
   "feature": "feature-playlist-unlink-disconnect",
   "plan": ".ai/plans/feature-playlist-unlink-disconnect.md",
   "status": "ready_for_review",
+  "pr": "https://github.com/ha0xian/YoutubePlaylist/pull/18",
   "open_questions": [],
   "blocked_reason": null
 }
