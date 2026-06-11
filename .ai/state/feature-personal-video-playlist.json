@@ -2,6 +2,8 @@
   "feature": "feature-personal-video-playlist",
   "plan": ".ai/plans/feature-personal-video-playlist.md",
   "status": "ready_for_review",
+  "pr_url": "https://github.com/ha0xian/YoutubePlaylist/pull/31",
+  "pr_number": 31,
   "open_questions": [],
   "blocked_reason": null
 }
