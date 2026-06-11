@@ -105,6 +105,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
             "description",
             "published_at",
             "source",
+            "is_unlinked",
         )
 
 
@@ -123,6 +124,7 @@ class PlaylistDetailSerializer(serializers.ModelSerializer):
             "description",
             "published_at",
             "source",
+            "is_unlinked",
             "videos",
         )
 

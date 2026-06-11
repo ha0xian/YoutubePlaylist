@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
-import { getPlaylist, refreshPlaylist } from '../api/playlists'
+import { getPlaylist, refreshPlaylist, unlinkPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
 import VideoListItem from '../components/VideoListItem'
@@ -19,6 +19,7 @@ export default function PlaylistDetail() {
   const [error, setError] = useState<string | null>(null)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isUnlinking, setIsUnlinking] = useState(false)
   const fetchVersionRef = useRef(0)
 
   useEffect(() => {
@@ -61,6 +62,22 @@ export default function PlaylistDetail() {
           err instanceof Error ? err.message : 'Failed to refresh playlist.',
         )
         setIsRefreshing(false)
+      })
+  }
+
+  const handleUnlink = () => {
+    if (!id || !token || isUnlinking) return
+
+    setIsUnlinking(true)
+    unlinkPlaylist(token, id)
+      .then(() => {
+        navigate('/')
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : 'Failed to unlink playlist.',
+        )
+        setIsUnlinking(false)
       })
   }
 
@@ -163,6 +180,18 @@ export default function PlaylistDetail() {
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
               </svg>
               {isRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              onClick={handleUnlink}
+              disabled={isUnlinking}
+              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-[#ff6b6b] transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
+              title="Unlink playlist"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              {isUnlinking ? 'Unlinking…' : 'Unlink'}
             </button>
             <UserMenu />
           </div>

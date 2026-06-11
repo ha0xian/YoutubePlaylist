@@ -641,6 +641,7 @@ def list_remote_playlists_for_user(user: User) -> list[dict]:
         for playlist in Playlist.objects.filter(
             user=user,
             youtube_playlist_id__in=playlist_ids,
+            is_unlinked=False,
         )
     }
 
@@ -724,6 +725,7 @@ def _persist_oauth_playlist(
             existing.video_count = content_details.get(
                 "itemCount", existing.video_count
             )
+            existing.is_unlinked = False
             existing.save(
                 update_fields=[
                     "title",
@@ -732,6 +734,7 @@ def _persist_oauth_playlist(
                     "description",
                     "published_at",
                     "video_count",
+                    "is_unlinked",
                     "updated_at",
                 ]
             )
@@ -745,6 +748,7 @@ def _persist_oauth_playlist(
                 "published_at": _iso_to_datetime(snippet.get("publishedAt")),
                 "video_count": content_details.get("itemCount", 0),
                 "source": "oauth",
+                "is_unlinked": False,
             }
             playlist, _ = Playlist.objects.update_or_create(
                 user=user,
@@ -779,7 +783,9 @@ def import_selected_oauth_playlists_for_user(
 
     imported: list[Playlist] = []
     if not selected_ids:
-        Playlist.objects.filter(user=user, source="oauth").delete()
+        Playlist.objects.filter(
+            user=user, source="oauth", is_unlinked=False
+        ).update(is_unlinked=True)
         return imported, 0
 
     oauth_playlists = _fetch_oauth_playlists_by_ids(selected_ids, access_token)
@@ -797,9 +803,11 @@ def import_selected_oauth_playlists_for_user(
             )
         )
 
-    Playlist.objects.filter(user=user, source="oauth").exclude(
+    Playlist.objects.filter(
+        user=user, source="oauth", is_unlinked=False
+    ).exclude(
         youtube_playlist_id__in=selected_set
-    ).delete()
+    ).update(is_unlinked=True)
 
     return imported, len(imported)
 
@@ -890,7 +898,8 @@ def import_oauth_playlists_for_user(
             ).first()
 
             if existing and existing.source == "url":
-                # Update metadata but keep source="url"
+                # Update metadata but keep source="url"; clear is_unlinked so a
+                # previously unlinked URL playlist becomes visible again.
                 existing.title = snippet.get("title", existing.title)
                 existing.channel_title = snippet.get(
                     "channelTitle", existing.channel_title
@@ -909,6 +918,7 @@ def import_oauth_playlists_for_user(
                 existing.video_count = content_details.get(
                     "itemCount", existing.video_count
                 )
+                existing.is_unlinked = False
                 existing.save(
                     update_fields=[
                         "title",
@@ -917,6 +927,7 @@ def import_oauth_playlists_for_user(
                         "description",
                         "published_at",
                         "video_count",
+                        "is_unlinked",
                         "updated_at",
                     ]
                 )
@@ -938,6 +949,7 @@ def import_oauth_playlists_for_user(
                 "published_at": _iso_to_datetime(snippet.get("publishedAt")),
                 "video_count": content_details.get("itemCount", 0),
                 "source": "oauth",
+                "is_unlinked": False,
             }
 
             playlist, created = Playlist.objects.update_or_create(

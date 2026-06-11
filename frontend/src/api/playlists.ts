@@ -1,4 +1,8 @@
-import type { Playlist, PlaylistDetail } from '../types/playlist'
+import type {
+  Playlist,
+  PlaylistDetail,
+  PlaylistUnlinkResponse,
+} from '../types/playlist'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -87,4 +91,16 @@ export function importPlaylist(
   })
     .then(parseJson)
     .then((data) => normalizeKeys<PlaylistDetail>(data))
+}
+
+export function unlinkPlaylist(
+  token: string,
+  id: string | number,
+): Promise<PlaylistUnlinkResponse> {
+  return fetch(`${API_BASE_URL}/api/playlists/${id}/unlink/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<PlaylistUnlinkResponse>(data))
 }
