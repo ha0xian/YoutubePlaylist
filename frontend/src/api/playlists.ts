@@ -93,6 +93,19 @@ export function importPlaylist(
     .then((data) => normalizeKeys<PlaylistDetail>(data))
 }
 
+export function importPersonalVideo(
+  token: string,
+  url: string,
+): Promise<PlaylistDetail> {
+  return fetch(`${API_BASE_URL}/api/playlists/personal/videos/import/`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ url }),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<PlaylistDetail>(data))
+}
+
 export function unlinkPlaylist(
   token: string,
   id: string | number,

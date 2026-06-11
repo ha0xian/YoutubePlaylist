@@ -3,6 +3,10 @@ from django.db import models
 
 
 class Playlist(models.Model):
+    SOURCE_URL = "url"
+    SOURCE_OAUTH = "oauth"
+    SOURCE_PERSONAL = "personal"
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="playlists")
     youtube_playlist_id = models.CharField(max_length=100, db_index=True)
     title = models.CharField(max_length=500)

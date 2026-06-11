@@ -684,8 +684,12 @@ class PlaylistListTests(APITestCase):
             HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "A's Playlist")
+        # User A has their explicit playlist plus the auto-created personal playlist
+        self.assertGreaterEqual(len(response.data), 1)
+        titles = [p["title"] for p in response.data]
+        self.assertIn("A's Playlist", titles)
+        # User B's playlist is not visible to User A
+        self.assertNotIn("B's Playlist", titles)
 
 
 class PlaylistDetailTests(APITestCase):
@@ -940,9 +944,562 @@ class PlaylistListUnlinkedTests(APITestCase):
             HTTP_AUTHORIZATION=f"Token {self.token.key}",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["id"], self.linked.id)
-        self.assertEqual(response.data[0]["youtube_playlist_id"], "PLlinked")
+        # Should include the linked playlist plus the auto-created personal playlist
+        self.assertGreaterEqual(len(response.data), 1)
+        ids = [p["id"] for p in response.data]
+        self.assertIn(self.linked.id, ids)
+        self.assertNotIn(self.unlinked.id, ids)
+
+
+# ── Personal playlist tests ────────────────────────────────────────────────
+
+
+class PersonalPlaylistTests(APITestCase):
+    """Tests for personal playlist creation, video import, and refresh rejection."""
+
+    def setUp(self):
+        self.list_url = "/api/playlists/"
+        self.import_url = "/api/playlists/personal/videos/import/"
+        self.user = User.objects.create_user(
+            username="personaluser", password="AStrongP4ssword!"
+        )
+        self.token = Token.objects.create(user=self.user)
+
+    def _auth_header(self):
+        return {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
+
+    def _video_detail_for(self, video_id, title="Test Video"):
+        return {
+            video_id: {
+                "id": video_id,
+                "snippet": {
+                    "title": title,
+                    "channelTitle": "Test Channel",
+                    "publishedAt": "2026-01-10T10:00:00Z",
+                    "thumbnails": {
+                        "default": {
+                            "url": f"https://i.ytimg.com/vi/{video_id}/default.jpg"
+                        }
+                    },
+                },
+                "contentDetails": {"duration": "PT5M30S"},
+                "statistics": {"viewCount": "1000"},
+            }
+        }
+
+    # ── Personal playlist auto-creation ─────────────────────────────────────
+
+    def test_list_creates_personal_playlist_for_new_user(self):
+        """Authenticated GET /api/playlists/ creates one personal playlist for a new user."""
+        from .models import Playlist
+
+        self.assertEqual(
+            Playlist.objects.filter(user=self.user).count(), 0
+        )
+
+        response = self.client.get(self.list_url, **self._auth_header())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(len(response.data), 1)
+
+        personal = next(
+            (p for p in response.data if p["source"] == Playlist.SOURCE_PERSONAL),
+            None,
+        )
+        self.assertIsNotNone(personal)
+        self.assertEqual(personal["title"], "My Playlist")
+        self.assertEqual(personal["source"], Playlist.SOURCE_PERSONAL)
+        self.assertEqual(personal["channel_title"], "")
+
+        # One personal playlist row in the database for this user
+        self.assertEqual(
+            Playlist.objects.filter(
+                user=self.user, source=Playlist.SOURCE_PERSONAL
+            ).count(),
+            1,
+        )
+
+    def test_list_is_idempotent_for_personal_playlist(self):
+        """A second list call does not create a second personal playlist."""
+        from .models import Playlist
+
+        response1 = self.client.get(self.list_url, **self._auth_header())
+        self.assertEqual(response1.status_code, status.HTTP_200_OK)
+
+        response2 = self.client.get(self.list_url, **self._auth_header())
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(
+            Playlist.objects.filter(
+                user=self.user, source=Playlist.SOURCE_PERSONAL
+            ).count(),
+            1,
+        )
+
+    def test_list_restores_unlinked_personal_playlist(self):
+        """A previously unlinked personal playlist reappears on list."""
+        from .models import Playlist
+
+        # Create and unlink the personal playlist
+        response1 = self.client.get(self.list_url, **self._auth_header())
+        personal = Playlist.objects.get(
+            user=self.user, source=Playlist.SOURCE_PERSONAL
+        )
+        personal.is_unlinked = True
+        personal.save()
+
+        # List again — should restore visibility
+        response2 = self.client.get(self.list_url, **self._auth_header())
+        personal_ids = [p["id"] for p in response2.data]
+        self.assertIn(personal.id, personal_ids)
+
+        personal.refresh_from_db()
+        self.assertFalse(personal.is_unlinked)
+
+    # ── Auth requirements ───────────────────────────────────────────────────
+
+    def test_import_rejects_unauthenticated(self):
+        """POST /api/playlists/personal/videos/import/ requires auth."""
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_requires_auth(self):
+        """GET /api/playlists/ requires auth."""
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # ── Video import — happy path ───────────────────────────────────────────
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_valid_url_creates_video_returns_201(self, mock_videos):
+        """Valid YouTube watch URL imports one video into personal playlist."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["source"], "personal")
+        self.assertEqual(len(response.data["videos"]), 1)
+        self.assertEqual(
+            response.data["videos"][0]["youtube_video_id"], "vid00000001"
+        )
+        self.assertEqual(response.data["videos"][0]["position"], 0)
+
+        from .models import Playlist, Video
+
+        self.assertEqual(
+            Playlist.objects.filter(
+                user=self.user, source=Playlist.SOURCE_PERSONAL
+            ).count(),
+            1,
+        )
+        playlist = Playlist.objects.get(
+            user=self.user, source=Playlist.SOURCE_PERSONAL
+        )
+        self.assertEqual(Video.objects.filter(playlist=playlist).count(), 1)
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_raw_video_id_works(self, mock_videos):
+        """Raw 11-character YouTube video ID is accepted."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["videos"][0]["youtube_video_id"], "vid00000001"
+        )
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_youtu_be_short_url(self, mock_videos):
+        """youtu.be/<id> short URL is accepted."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://youtu.be/vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["videos"][0]["youtube_video_id"], "vid00000001"
+        )
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_shorts_url(self, mock_videos):
+        """YouTube Shorts URL is accepted."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/shorts/vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            response.data["videos"][0]["youtube_video_id"], "vid00000001"
+        )
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_sets_playlist_thumbnail_from_first_video(self, mock_videos):
+        """When the personal playlist has no thumbnail, the first video thumbnail is used."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("vid00000001/default.jpg", response.data["thumbnail_url"])
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_appends_second_video_at_correct_position(self, mock_videos):
+        """Second import appends video at position 1, after the first video."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        # First import
+        response1 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Second import
+        mock_videos.return_value = self._video_detail_for("vid00000002", "Second Video")
+        response2 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000002"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response2.data["videos"]), 2)
+        video2 = next(
+            v for v in response2.data["videos"]
+            if v["youtube_video_id"] == "vid00000002"
+        )
+        self.assertEqual(video2["position"], 1)
+
+    # ── Duplicate import ────────────────────────────────────────────────────
+
+    @patch("api.youtube._fetch_video_details")
+    def test_duplicate_import_updates_returns_200(self, mock_videos):
+        """Re-importing the same video updates metadata and returns 200."""
+        mock_videos.return_value = self._video_detail_for(
+            "vid00000001", "Original Title"
+        )
+
+        # First import
+        response1 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Second import with changed title
+        mock_videos.return_value = self._video_detail_for(
+            "vid00000001", "Updated Title"
+        )
+        response2 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response2.status_code, status.HTTP_200_OK)
+        video = response2.data["videos"][0]
+        self.assertEqual(video["title"], "Updated Title")
+
+        # Only one Video row
+        from .models import Video
+
+        playlist_id = response2.data["id"]
+        self.assertEqual(
+            Video.objects.filter(
+                playlist_id=playlist_id, youtube_video_id="vid00000001"
+            ).count(),
+            1,
+        )
+
+    @patch("api.youtube._fetch_video_details")
+    def test_duplicate_import_does_not_change_position(self, mock_videos):
+        """Re-importing does not change existing video position."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+        response1 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        mock_videos.return_value = self._video_detail_for("vid00000002")
+        response2 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000002"},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+        # Reimport first — position should stay 0
+        mock_videos.return_value = self._video_detail_for("vid00000001", "Reimported")
+        response3 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response3.status_code, status.HTTP_200_OK)
+        video1 = next(
+            v for v in response3.data["videos"]
+            if v["youtube_video_id"] == "vid00000001"
+        )
+        self.assertEqual(video1["position"], 0)
+
+    # ── Multi-user scoping ──────────────────────────────────────────────────
+
+    @patch("api.youtube._fetch_video_details")
+    def test_two_users_import_same_video_separate_playlists(self, mock_videos):
+        """Two users get separate personal playlists with separate video rows."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        user2 = User.objects.create_user(
+            username="personaluser2", password="AStrongP4ssword!"
+        )
+        token2 = Token.objects.create(user=user2)
+
+        response1 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+        response2 = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            HTTP_AUTHORIZATION=f"Token {token2.key}",
+        )
+
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(response1.data["id"], response2.data["id"])
+
+        from .models import Playlist
+
+        # Each user has their own personal playlist
+        personal_count = Playlist.objects.filter(
+            source=Playlist.SOURCE_PERSONAL
+        ).count()
+        self.assertEqual(personal_count, 2)
+
+    @patch("api.youtube._fetch_video_details")
+    def test_user_cannot_see_other_user_videos(self, mock_videos):
+        """User A's personal playlist is not visible to User B."""
+        mock_videos.return_value = self._video_detail_for("vid00000001")
+
+        user2 = User.objects.create_user(
+            username="personaluser2", password="AStrongP4ssword!"
+        )
+        token2 = Token.objects.create(user=user2)
+
+        # User A imports
+        self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        # User B lists
+        list_response = self.client.get(
+            self.list_url,
+            HTTP_AUTHORIZATION=f"Token {token2.key}",
+        )
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+
+        # User B has their own personal playlist (created on list), not User A's
+        user_a_ids = {p["id"] for p in self.client.get(
+            self.list_url, **self._auth_header()
+        ).data}
+        user_b_ids = {p["id"] for p in list_response.data}
+        self.assertTrue(user_a_ids.isdisjoint(user_b_ids))
+
+    # ── Error cases ─────────────────────────────────────────────────────────
+
+    def test_import_rejects_blank_url(self):
+        """Blank URL returns 400."""
+        response = self.client.post(
+            self.import_url,
+            {"url": "   "},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_import_rejects_missing_url(self):
+        """Missing URL field returns 400."""
+        response = self.client.post(
+            self.import_url,
+            {},
+            format="json",
+            **self._auth_header(),
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_import_rejects_non_youtube_url(self):
+        """Non-YouTube URL returns 400 with detail."""
+        bad_url = "https://example.com/video"
+        response = self.client.post(
+            self.import_url,
+            {"url": bad_url},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["url"], bad_url)
+        self.assertIn("detail", response.data)
+
+    def test_import_rejects_playlist_url(self):
+        """Playlist-only URL without a video ID returns 400."""
+        playlist_url = "https://www.youtube.com/playlist?list=PLtest123456789"
+        response = self.client.post(
+            self.import_url,
+            {"url": playlist_url},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data["url"], playlist_url)
+
+    def test_import_rejects_youtube_url_without_video_id(self):
+        """YouTube URL without a video ID or list param returns 400."""
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_handles_video_not_found(self, mock_videos):
+        """When YouTube returns no data for the video ID, returns 502."""
+        mock_videos.return_value = {}  # No video found
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertIn("url", response.data)
+        self.assertEqual(response.data["url"], "https://www.youtube.com/watch?v=vid00000001")
+        self.assertIn("detail", response.data)
+
+    @patch("api.youtube._fetch_video_details")
+    def test_import_handles_youtube_api_error(self, mock_videos):
+        """YouTube API error returns 502."""
+        from .youtube import YouTubeAPIError
+
+        mock_videos.side_effect = YouTubeAPIError("Quota exceeded")
+
+        response = self.client.post(
+            self.import_url,
+            {"url": "https://www.youtube.com/watch?v=vid00000001"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertIn("Quota exceeded", response.data["detail"])
+
+    # ── Refresh rejection ───────────────────────────────────────────────────
+
+    def test_refresh_personal_playlist_returns_400(self):
+        """Refreshing a personal playlist returns 400 with a clear message."""
+        from .models import Playlist
+
+        # Create personal playlist
+        response = self.client.get(self.list_url, **self._auth_header())
+        personal = next(
+            p for p in response.data if p["source"] == "personal"
+        )
+
+        refresh_url = f"/api/playlists/{personal['id']}/refresh/"
+        refresh_response = self.client.post(
+            refresh_url,
+            **self._auth_header(),
+        )
+
+        self.assertEqual(refresh_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("detail", refresh_response.data)
+        self.assertIn("personal collection", refresh_response.data["detail"].lower())
+
+    # ── Public playlist import still works ──────────────────────────────────
+
+    @patch("api.youtube._fetch_video_details")
+    @patch("api.youtube._fetch_playlist_items")
+    @patch("api.youtube._fetch_playlist_snippet")
+    def test_url_playlist_import_still_creates_url_source(
+        self, mock_snippet, mock_items, mock_videos
+    ):
+        """Importing a public YouTube playlist URL still creates source="url" playlists."""
+        mock_snippet.return_value = _playlist_snippet()
+        mock_items.return_value = _playlist_items()
+        mock_videos.return_value = _video_details(["vid00000001", "vid00000002"])
+
+        response = self.client.post(
+            "/api/playlists/import/",
+            {"url": "https://www.youtube.com/playlist?list=PLtest123456789"},
+            format="json",
+            **self._auth_header(),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["source"], "url")
+
+        from .models import Playlist
+
+        self.assertEqual(
+            Playlist.objects.filter(
+                user=self.user, source=Playlist.SOURCE_URL
+            ).count(),
+            1,
+        )
 
 
 class NoteDetailTests(APITestCase):

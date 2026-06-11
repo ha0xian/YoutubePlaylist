@@ -75,6 +75,10 @@ class PlaylistUrlImportSerializer(serializers.Serializer):
     url = serializers.CharField(required=True, allow_blank=False)
 
 
+class PersonalVideoImportSerializer(serializers.Serializer):
+    url = serializers.CharField(required=True, allow_blank=False)
+
+
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video

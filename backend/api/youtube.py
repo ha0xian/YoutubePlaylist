@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Max
 
 from .models import Playlist, Video
 
@@ -180,6 +181,197 @@ def _iso_to_datetime(iso_str: str | None):
         return parse_datetime(iso_str)
     except Exception:
         return None
+
+
+# ── Personal playlist helpers ──────────────────────────────────────────────
+
+
+def extract_video_id(url_or_id: str) -> str:
+    """Return an 11-character YouTube video ID or raise PlaylistImportError."""
+    if not url_or_id or not url_or_id.strip():
+        raise PlaylistImportError("No URL provided.")
+
+    stripped = url_or_id.strip()
+
+    # Raw 11-character YouTube video ID
+    if re.match(r"^[a-zA-Z0-9_-]{11}$", stripped):
+        return stripped
+
+    # Must be a YouTube URL from here on
+    if "youtube.com" not in stripped and "youtu.be" not in stripped:
+        raise PlaylistImportError("This does not look like a YouTube video URL or ID.")
+
+    parsed = urlparse(stripped)
+    query = parse_qs(parsed.query)
+
+    # youtu.be/<id> short URL
+    if "youtu.be" in parsed.netloc:
+        video_id = parsed.path.strip("/")
+        if re.match(r"^[a-zA-Z0-9_-]{11}$", video_id):
+            return video_id
+        raise PlaylistImportError(
+            f"The short URL path \"{video_id}\" does not look like a valid video ID."
+        )
+
+    # youtube.com/shorts/<id>
+    if "/shorts/" in parsed.path:
+        shorts_match = re.search(r"/shorts/([a-zA-Z0-9_-]{11})", parsed.path)
+        if shorts_match:
+            return shorts_match.group(1)
+        raise PlaylistImportError(
+            "Could not extract a video ID from the Shorts URL."
+        )
+
+    # Standard watch URL with ?v= param
+    video_id = query.get("v", [None])[0]
+    if video_id and re.match(r"^[a-zA-Z0-9_-]{11}$", video_id):
+        return video_id
+
+    # Check if this is a playlist URL with a `list` param — reject for video import
+    if query.get("list"):
+        raise PlaylistImportError(
+            "This looks like a playlist URL. To import a single video, "
+            "use a watch URL (e.g. https://www.youtube.com/watch?v=VIDEO_ID) "
+            "or paste the 11-character video ID directly."
+        )
+
+    if video_id:
+        raise PlaylistImportError(
+            f"The video ID \"{video_id}\" does not look valid."
+        )
+
+    raise PlaylistImportError(
+        "Could not find a video ID in the URL. "
+        "Use a watch URL (e.g. https://www.youtube.com/watch?v=VIDEO_ID), "
+        "a youtu.be short link, or paste the 11-character video ID directly."
+    )
+
+
+def get_or_create_personal_playlist_for_user(user: User) -> Playlist:
+    """Return the user's visible personal playlist, creating it if missing."""
+    playlist, _ = Playlist.objects.get_or_create(
+        user=user,
+        youtube_playlist_id=f"personal:{user.id}",
+        defaults={
+            "title": "My Playlist",
+            "channel_title": "",
+            "description": "",
+            "thumbnail_url": "",
+            "video_count": 0,
+            "source": Playlist.SOURCE_PERSONAL,
+            "is_unlinked": False,
+        },
+    )
+
+    # If the personal playlist was previously unlinked, restore visibility
+    if playlist.is_unlinked:
+        playlist.is_unlinked = False
+        playlist.save(update_fields=["is_unlinked", "updated_at"])
+
+    return playlist
+
+
+def import_personal_video_for_user(
+    user: User, url_or_id: str
+) -> tuple[Playlist, bool]:
+    """Import one YouTube video into the user's personal playlist.
+
+    Returns (playlist, created), where created is True only when a new Video row
+    was appended to the personal playlist.
+    """
+    video_id = extract_video_id(url_or_id)
+
+    # Fetch video metadata from YouTube
+    try:
+        details = _fetch_video_details([video_id])
+    except YouTubeAPIError:
+        raise
+    except Exception as exc:
+        raise YouTubeAPIError(
+            f"Failed to fetch video details from YouTube: {exc}"
+        ) from exc
+
+    item = details.get(video_id)
+    if not item:
+        raise YouTubeAPIError(
+            "Video not found on YouTube. It may have been deleted or made private."
+        )
+
+    snippet = item.get("snippet", {})
+    content_details = item.get("contentDetails", {})
+    stats = item.get("statistics", {})
+
+    duration = _parse_iso_duration(content_details.get("duration", "PT0S"))
+
+    with transaction.atomic():
+        playlist = get_or_create_personal_playlist_for_user(user)
+
+        existing_video = Video.objects.filter(
+            playlist=playlist, youtube_video_id=video_id
+        ).first()
+
+        is_new = existing_video is None
+
+        if is_new:
+            # Compute next position
+            max_pos = (
+                playlist.videos.aggregate(
+                    max_pos=Max("position")
+                )["max_pos"]
+            )
+            position = (max_pos + 1) if max_pos is not None else 0
+
+            Video.objects.create(
+                playlist=playlist,
+                youtube_video_id=video_id,
+                position=position,
+                title=snippet.get("title", ""),
+                channel_title=snippet.get("channelTitle", ""),
+                duration=duration,
+                thumbnail_url=(
+                    snippet.get("thumbnails", {})
+                    .get("default", {})
+                    .get("url", "")
+                ),
+                published_at=_iso_to_datetime(snippet.get("publishedAt")),
+                view_count=int(stats.get("viewCount", 0)),
+                is_removed=False,
+            )
+        else:
+            # Update existing video metadata
+            existing_video.title = snippet.get("title") or existing_video.title
+            existing_video.channel_title = (
+                snippet.get("channelTitle") or existing_video.channel_title
+            )
+            existing_video.duration = duration
+            existing_video.thumbnail_url = (
+                snippet.get("thumbnails", {})
+                .get("default", {})
+                .get("url", "")
+            ) or existing_video.thumbnail_url
+            existing_video.published_at = _iso_to_datetime(
+                snippet.get("publishedAt")
+            ) or existing_video.published_at
+            existing_video.view_count = int(stats.get("viewCount", 0))
+            existing_video.is_removed = False
+            existing_video.save()
+
+        # Update playlist thumbnail from first active video if playlist has none
+        if not playlist.thumbnail_url:
+            first_active = playlist.videos.filter(is_removed=False).order_by(
+                "position"
+            ).first()
+            if first_active and first_active.thumbnail_url:
+                playlist.thumbnail_url = first_active.thumbnail_url
+
+        # Keep video_count accurate — count all videos including removed,
+        # consistent with how URL playlists use YouTube's itemCount.
+        playlist.video_count = playlist.videos.count()
+        playlist.save(
+            update_fields=["thumbnail_url", "video_count", "updated_at"]
+        )
+
+    return playlist, is_new
 
 
 def reconcile_playlist_videos(
