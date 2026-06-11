@@ -8,13 +8,20 @@ from .models import Note, Playlist
 from .serializers import (
     LoginSerializer,
     NoteSerializer,
+    PersonalVideoImportSerializer,
     PlaylistDetailSerializer,
     PlaylistSerializer,
     PlaylistUrlImportSerializer,
     RegisterSerializer,
     UserSerializer,
 )
-from .youtube import PlaylistImportError, YouTubeAPIError, import_playlist_for_user
+from .youtube import (
+    PlaylistImportError,
+    YouTubeAPIError,
+    get_or_create_personal_playlist_for_user,
+    import_personal_video_for_user,
+    import_playlist_for_user,
+)
 from .youtube_oauth import (
     YouTubeOAuthConfigError,
     YouTubeOAuthError,
@@ -78,6 +85,8 @@ def current_user(request):
 @permission_classes([IsAuthenticated])
 def playlist_list(request):
     """List playlists owned by the current user."""
+    # Ensure the personal playlist exists before returning the list
+    get_or_create_personal_playlist_for_user(request.user)
     playlists = Playlist.objects.filter(user=request.user, is_unlinked=False)
     return Response(PlaylistSerializer(playlists, many=True).data)
 
@@ -140,6 +149,17 @@ def playlist_refresh(request, pk):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    if playlist.source == Playlist.SOURCE_PERSONAL:
+        return Response(
+            {
+                "detail": (
+                    "My Playlist is your personal collection and cannot be "
+                    "refreshed from YouTube. Add videos individually instead."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if playlist.source == "url":
         url = f"https://www.youtube.com/playlist?list={playlist.youtube_playlist_id}"
         try:
@@ -199,6 +219,34 @@ def playlist_unlink(request, pk):
         "is_unlinked": True,
         "detail": "Playlist unlinked.",
     })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def personal_video_import(request):
+    """Import a YouTube video into the current user's personal playlist."""
+    serializer = PersonalVideoImportSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    url = serializer.validated_data["url"]
+
+    try:
+        playlist, created = import_personal_video_for_user(request.user, url)
+    except PlaylistImportError as exc:
+        return Response(
+            {"url": url, "detail": str(exc)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except YouTubeAPIError as exc:
+        return Response(
+            {"url": url, "detail": str(exc)},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    response_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    return Response(
+        PlaylistDetailSerializer(playlist).data,
+        status=response_status,
+    )
 
 
 @api_view(["GET", "PUT"])

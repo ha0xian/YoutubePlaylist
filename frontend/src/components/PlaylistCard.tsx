@@ -48,6 +48,11 @@ export default function PlaylistCard({
             YouTube
           </span>
         )}
+        {playlist.source === 'personal' && (
+          <span className="absolute top-2 left-2 bg-black/70 text-[#ff8c00] text-[10px] px-1.5 py-0.5 rounded">
+            My List
+          </span>
+        )}
       </div>
       <div className="p-3 space-y-1">
         <div className="relative flex items-start gap-2">
@@ -81,7 +86,7 @@ export default function PlaylistCard({
                   className="absolute right-0 top-8 z-20 min-w-32 overflow-hidden rounded-md border border-[#333] bg-[#202020] py-1 shadow-xl"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {onRefresh && (
+                  {onRefresh && playlist.source !== 'personal' && (
                     <button
                       type="button"
                       role="menuitem"

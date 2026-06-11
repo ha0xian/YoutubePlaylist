@@ -159,28 +159,30 @@ export default function PlaylistDetail() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
-              title="Refresh playlist from YouTube"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={isRefreshing ? 'animate-spin' : ''}
+            {playlist.source !== 'personal' && (
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
+                title="Refresh playlist from YouTube"
               >
-                <polyline points="23 4 23 10 17 10" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-              {isRefreshing ? 'Refreshing…' : 'Refresh'}
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={isRefreshing ? 'animate-spin' : ''}
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {isRefreshing ? 'Refreshing…' : 'Refresh'}
+              </button>
+            )}
             <button
               onClick={handleUnlink}
               disabled={isUnlinking}

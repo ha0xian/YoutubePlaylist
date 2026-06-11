@@ -20,8 +20,8 @@ export interface Playlist {
   videoCount: number
   description: string
   publishedAt: string | null
-  /** ``"url"`` — imported from a public URL; ``"oauth"`` — imported via YouTube OAuth. */
-  source: 'url' | 'oauth' | string
+  /** ``"url"`` — imported from a public URL; ``"oauth"`` — imported via YouTube OAuth; ``"personal"`` — built-in personal playlist. */
+  source: 'url' | 'oauth' | 'personal' | string
   /** Whether the playlist has been unlinked from the user's visible collection. */
   isUnlinked: boolean
 }

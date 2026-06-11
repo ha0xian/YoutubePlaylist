@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   listPlaylists,
   importPlaylist,
+  importPersonalVideo,
   refreshPlaylist,
   unlinkPlaylist,
 } from '../api/playlists'
@@ -33,6 +34,12 @@ export default function PlaylistBrowser() {
   const [importError, setImportError] = useState<string | null>(null)
   const [importUrlValue, setImportUrlValue] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+
+  // Personal video import state
+  const [personalVideoUrl, setPersonalVideoUrl] = useState('')
+  const [personalVideoError, setPersonalVideoError] = useState<string | null>(null)
+  const [personalVideoUrlValue, setPersonalVideoUrlValue] = useState<string | null>(null)
+  const [isImportingPersonalVideo, setIsImportingPersonalVideo] = useState(false)
 
   // YouTube OAuth state
   const [oauthStatus, setOauthStatus] = useState<YouTubeStatus | null>(null)
@@ -279,6 +286,48 @@ export default function PlaylistBrowser() {
     }
   }
 
+  // ── Personal video import handler ───────────────────────────────────────
+
+  const handlePersonalVideoImport = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const trimmed = personalVideoUrl.trim()
+    if (!trimmed) return
+
+    setIsImportingPersonalVideo(true)
+    setPersonalVideoError(null)
+    setPersonalVideoUrlValue(null)
+
+    try {
+      await importPersonalVideo(token!, trimmed)
+      setPersonalVideoUrl('')
+      // Refresh playlist list after import
+      setIsLoading(true)
+      setError(null)
+      const refreshVersion = ++fetchVersionRef.current
+      try {
+        const data = await listPlaylists(token!)
+        if (refreshVersion === fetchVersionRef.current) {
+          setPlaylists(data)
+        }
+      } catch (err) {
+        if (refreshVersion === fetchVersionRef.current) {
+          setError(err instanceof Error ? err.message : 'Failed to load playlists.')
+        }
+      } finally {
+        if (refreshVersion === fetchVersionRef.current) {
+          setIsLoading(false)
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Import failed.'
+      setPersonalVideoError(message)
+      setPersonalVideoUrlValue(trimmed)
+    } finally {
+      setIsImportingPersonalVideo(false)
+    }
+  }
+
   const toggleRemotePlaylist = (playlist: YouTubeRemotePlaylist) => {
     setSelectedRemoteIds((current) => {
       const next = new Set(current)
@@ -338,6 +387,7 @@ export default function PlaylistBrowser() {
 
   const handlePlaylistRefresh = async (playlist: Playlist) => {
     if (!token || refreshingId || unlinkingId) return
+    if (playlist.source === 'personal') return
 
     setRefreshingId(playlist.id)
     setOpenPlaylistMenuId(null)
@@ -394,7 +444,7 @@ export default function PlaylistBrowser() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-white">Playlists</h1>
             <p className="text-sm text-[#999] mt-1">
-              Import a public YouTube playlist URL or browse your collection
+              Import a public YouTube playlist URL or add videos to My Playlist
             </p>
           </div>
           <UserMenu />
@@ -580,6 +630,41 @@ export default function PlaylistBrowser() {
             {importError}
           </div>
         )}
+
+        {/* ── Personal video import form ─────────────────────────────── */}
+        <form onSubmit={handlePersonalVideoImport} className="mt-3 flex gap-2">
+          <input
+            type="text"
+            value={personalVideoUrl}
+            onChange={(e) => {
+              setPersonalVideoUrl(e.target.value)
+              if (personalVideoError) {
+                setPersonalVideoError(null)
+                setPersonalVideoUrlValue(null)
+              }
+            }}
+            placeholder="Add a video to My Playlist — paste a YouTube watch URL or video ID"
+            className="flex-1 bg-[#2a2a2a] text-white text-sm px-3 py-2 rounded border border-[#444] focus:outline-none focus:border-[#ff8c00] placeholder-[#666]"
+          />
+          <button
+            type="submit"
+            disabled={isImportingPersonalVideo || !personalVideoUrl.trim()}
+            className="bg-[#ff8c00] text-[#0f0f0f] text-sm px-5 py-2 rounded font-medium hover:bg-[#ffaa33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            {isImportingPersonalVideo ? 'Adding…' : 'Add to My Playlist'}
+          </button>
+        </form>
+
+        {personalVideoError && (
+          <div className="mt-2 text-sm text-[#ff6b6b]">
+            {personalVideoUrlValue && (
+              <span className="block text-[#999] break-all mb-1">
+                URL: {personalVideoUrlValue}
+              </span>
+            )}
+            {personalVideoError}
+          </div>
+        )}
       </header>
 
       <main>
@@ -594,7 +679,7 @@ export default function PlaylistBrowser() {
         {!isLoading && !error && playlists.length === 0 && (
           <div className="p-6 text-center">
             <p className="text-sm text-[#999]">
-              No playlists yet. Paste a YouTube playlist URL above to get started.
+              No playlists yet. Paste a YouTube playlist URL or add a video to My Playlist above to get started.
             </p>
           </div>
         )}
