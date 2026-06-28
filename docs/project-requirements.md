@@ -7,6 +7,8 @@ Build a web app for authenticated users to import, browse, watch, and take notes
 - Backend: Python Django REST Framework
 - Frontend: React (Vite)
 - Location: `C:\Users\NorthWhite\Desktop\Project\Youtube playlist`
+- Production frontend: https://youtube-playlist-theta.vercel.app
+- Production backend: https://youtubeplaylist-999w.onrender.com
 
 ## Core App
 
