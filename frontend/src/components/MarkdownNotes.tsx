@@ -136,27 +136,32 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a] border-b border-[#333] shrink-0">
-        <h2 className="text-base font-semibold">Notes (Markdown)</h2>
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#11161c] px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Video Notes</h2>
+          <p className="text-[11px] text-slate-500">Autosaved markdown</p>
+        </div>
         <div className="flex items-center gap-2">
           {isSaving && (
-            <span className="text-xs text-[#999]">Saving...</span>
+            <span className="text-xs text-slate-500">Saving...</span>
           )}
           {!showPreview && (
-            <div className="flex rounded-md border border-[#444] overflow-hidden">
+            <div className="flex overflow-hidden rounded-md border border-white/10 bg-black/20">
               <button
                 type="button"
                 onClick={() => setEditorMode('source')}
-                className="py-1.5 px-3 text-xs cursor-pointer border-r border-[#444]"
-                style={{ background: editorMode === 'source' ? '#2a5a9a' : '#2a2a2a' }}
+                className={`border-r border-white/10 px-3 py-1.5 text-xs ${
+                  editorMode === 'source' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                }`}
               >
                 Source
               </button>
               <button
                 type="button"
                 onClick={() => setEditorMode('live-preview')}
-                className="py-1.5 px-3 text-xs cursor-pointer"
-                style={{ background: editorMode === 'live-preview' ? '#2a5a9a' : '#2a2a2a' }}
+                className={`px-3 py-1.5 text-xs ${
+                  editorMode === 'live-preview' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                }`}
               >
                 Live Preview
               </button>
@@ -165,8 +170,11 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
           <button
             type="button"
             onClick={() => setShowPreview((p) => !p)}
-            style={{ background: showPreview ? '#2a5a9a' : '#2a2a2a' }}
-            className="py-1.5 px-3.5 border border-[#444] rounded-md text-[#e0e0e0] text-xs cursor-pointer"
+            className={`rounded-md border px-3.5 py-1.5 text-xs ${
+              showPreview
+                ? 'border-blue-400/30 bg-blue-500/20 text-blue-100'
+                : 'border-white/10 bg-white/[0.04] text-slate-300'
+            }`}
           >
             {showPreview ? 'Edit' : 'Preview'}
           </button>
@@ -175,23 +183,23 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
 
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="h-full flex items-center justify-center p-4 text-sm text-[#999]">
+          <div className="flex h-full items-center justify-center p-4 text-sm text-slate-500">
             Loading notes...
           </div>
         ) : loadError ? (
-          <div className="h-full flex items-center justify-center p-4 text-sm text-[#ff8a8a] text-center">
+          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-red-300">
             {loadError}
           </div>
         ) : showPreview ? (
           <div
-            className="markdown-preview p-4 h-full overflow-y-auto"
+            className="markdown-preview scrollbar-thin h-full overflow-y-auto p-4"
             dangerouslySetInnerHTML={renderedHtml()}
             style={{ lineHeight: 1.6 }}
           />
         ) : (
           <>
             {saveError && (
-              <div className="px-4 py-2 bg-[#3a1f1f] text-xs text-[#ffb3b3] border-b border-[#5c2f2f]">
+              <div className="border-b border-red-400/20 bg-red-500/10 px-4 py-2 text-xs text-red-200">
                 {saveError}
               </div>
             )}

@@ -6,15 +6,18 @@ export default function UserMenu() {
   if (!user) return null
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="min-w-0 text-right">
+    <div className="flex items-center gap-2">
+      <div className="hidden min-w-0 text-right sm:block">
         <p className="truncate text-sm font-medium text-white">{user.username}</p>
-        <p className="truncate text-xs text-[#999]">{user.email}</p>
+        <p className="truncate text-xs text-slate-500">{user.email}</p>
+      </div>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-xs font-semibold text-slate-200">
+        {user.username.slice(0, 2).toUpperCase()}
       </div>
       <button
         type="button"
         onClick={logout}
-        className="rounded-md border border-[#444] bg-[#1a1a1a] px-3 py-2 text-sm font-semibold text-[#e0e0e0] transition-colors hover:border-[#666] hover:bg-[#2a2a2a] cursor-pointer"
+        className="btn-secondary rounded-md px-3 py-2 text-sm font-semibold"
       >
         Logout
       </button>

@@ -46,18 +46,18 @@ export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex gap-2 px-4 py-3 bg-[#1a1a1a] border-b border-[#333] shrink-0">
+      <div className="flex shrink-0 gap-2 border-b border-white/10 bg-[#11161c] px-4 py-3">
         <input
           type="text"
           placeholder="Paste YouTube URL or video ID..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
-          className="flex-1 px-3 py-2 border border-[#444] rounded-md bg-[#2a2a2a] text-[#e0e0e0] text-sm outline-none"
+          className="control flex-1 rounded-md px-3 py-2 text-sm"
         />
         <button
           onClick={handleLoad}
-          className="px-5 py-2 border-none rounded-md bg-[#cc0000] text-white text-sm font-semibold cursor-pointer whitespace-nowrap"
+          className="btn-primary rounded-md px-5 py-2 text-sm font-semibold whitespace-nowrap"
         >
           Load
         </button>
@@ -73,7 +73,7 @@ export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
             className="w-full h-full border-none"
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-[#666] text-base">
+          <div className="flex h-full items-center justify-center text-base text-slate-600">
             Enter a YouTube URL above to start watching
           </div>
         )}
