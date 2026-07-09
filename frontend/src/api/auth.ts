@@ -66,6 +66,12 @@ export function login(credentials: AuthCredentials) {
   })
 }
 
+export function devLogin() {
+  return authFetch<AuthResponse>('/api/auth/dev-login/', {
+    method: 'POST',
+  })
+}
+
 export function register(credentials: RegisterCredentials) {
   return authFetch<AuthResponse>('/api/auth/register/', {
     method: 'POST',

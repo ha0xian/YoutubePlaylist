@@ -87,19 +87,22 @@ export default function AuthPage({ mode }: AuthPageProps) {
             <p className="mt-2 text-sm text-slate-500">
               {isRegister
                 ? 'Register to start building your private playlist workspace.'
-                : 'Sign in to browse playlists, watch videos, and keep your notes.'}
+                : 'Sign in with your username or email to browse playlists, watch videos, and keep your notes.'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="surface space-y-4 rounded-md p-5">
             <label className="block">
-              <span className="text-sm font-medium text-slate-300">Username</span>
+              <span className="text-sm font-medium text-slate-300">
+                {isRegister ? 'Username' : 'Username or email'}
+              </span>
               <input
                 type="text"
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
                 required
+                placeholder={isRegister ? 'northwhite' : 'northwhite or you@example.com'}
                 className="control mt-2 w-full rounded-md px-3 py-2 text-sm"
               />
             </label>

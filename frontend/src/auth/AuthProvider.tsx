@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  devLogin as devLoginRequest,
   getCurrentUser,
   login as loginRequest,
   register as registerRequest,
@@ -39,6 +40,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function loadUser() {
       if (!token) {
+        if (import.meta.env.DEV) {
+          try {
+            const response = await devLoginRequest()
+            if (isMounted) {
+              persistSession(response.token, response.user)
+            }
+          } catch {
+            if (isMounted) {
+              setIsLoading(false)
+            }
+          }
+          return
+        }
+
         setIsLoading(false)
         return
       }
@@ -64,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false
     }
-  }, [clearSession, token])
+  }, [clearSession, persistSession, token])
 
   const login = useCallback(
     async (credentials: AuthCredentials) => {
