@@ -30,27 +30,27 @@ export default function VideoListItem({ video, isSelected, onSelect }: VideoList
   return (
     <div
       onClick={handleClick}
-      className={`flex gap-3 p-3 cursor-pointer transition-colors ${
+      className={`flex gap-3 border-l-2 p-3 transition-colors ${
         isSelected
-          ? 'bg-[#2a2a2a] border-l-3 border-[#cc0000]'
-          : 'hover:bg-[#2a2a2a]/50 border-l-3 border-transparent'
+          ? 'border-[#e11d24] bg-red-500/10'
+          : 'border-transparent hover:bg-white/[0.04]'
       } ${video.isRemoved ? 'opacity-60' : ''}`}
     >
       <div style={{ position: 'relative' }} className="shrink-0">
         <img
           src={video.thumbnailUrl}
           alt={video.title}
-          className={`w-40 rounded-md object-cover ${video.isRemoved ? 'grayscale-[30%]' : ''}`}
+          className={`w-28 rounded-md border border-white/10 object-cover sm:w-36 ${video.isRemoved ? 'grayscale-[30%]' : ''}`}
           style={{ aspectRatio: '16/9' }}
           loading="lazy"
         />
-        <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded font-mono">
+        <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 font-mono text-[10px] text-white">
           {video.duration}
         </span>
       </div>
       <div className="flex flex-col justify-between min-w-0">
         <div className="flex items-center gap-2">
-          <h3 className={`text-sm font-medium line-clamp-2 leading-snug ${video.isRemoved ? 'text-[#999]' : 'text-white'}`}>
+          <h3 className={`line-clamp-2 text-sm font-medium leading-snug ${video.isRemoved ? 'text-slate-500' : 'text-slate-100'}`}>
             {video.title}
           </h3>
           {video.isRemoved && (
@@ -59,8 +59,8 @@ export default function VideoListItem({ video, isSelected, onSelect }: VideoList
             </span>
           )}
         </div>
-        <p className="text-xs text-[#999] mt-1">{video.channelTitle}</p>
-        <p className="text-xs text-[#666]">{views}</p>
+        <p className="mt-1 truncate text-xs text-slate-400">{video.channelTitle}</p>
+        <p className="text-xs text-slate-600">{views}</p>
       </div>
     </div>
   )

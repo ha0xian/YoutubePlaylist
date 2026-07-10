@@ -25,36 +25,40 @@ export default function PlaylistCard({
   const navigate = useNavigate()
   const isActionRunning = Boolean(isRefreshing || isUnlinking)
   const hasMenuActions = Boolean(onRefresh || onUnlink)
+  const sourceLabel =
+    playlist.source === 'oauth'
+      ? 'YouTube'
+      : playlist.source === 'personal'
+        ? 'My List'
+        : 'URL'
+  const sourceClass =
+    playlist.source === 'oauth'
+      ? 'border-blue-400/30 bg-blue-500/10 text-blue-200'
+      : playlist.source === 'personal'
+        ? 'border-amber-400/30 bg-amber-500/10 text-amber-200'
+        : 'border-red-400/30 bg-red-500/10 text-red-200'
 
   return (
     <div
       onClick={() => navigate(`/playlist/${playlist.id}`)}
-      className="bg-[#1a1a1a] rounded-lg cursor-pointer transition-all duration-200 hover:ring-2 hover:ring-[#cc0000] hover:ring-offset-2 hover:ring-offset-[#0f0f0f] group relative"
+      className="group relative cursor-pointer overflow-hidden rounded-md border border-white/10 bg-[#12171d] transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:bg-[#151b22] hover:shadow-[0_18px_45px_rgba(0,0,0,0.32)]"
     >
-      <div className="relative overflow-hidden rounded-t-lg">
+      <div className="relative overflow-hidden">
         <img
           src={playlist.thumbnailUrl}
           alt={playlist.title}
           className="w-full aspect-video object-cover"
           loading="lazy"
         />
-        {playlist.source === 'url' && (
-          <span className="absolute top-2 left-2 bg-black/70 text-[#999] text-[10px] px-1.5 py-0.5 rounded">
-            URL
-          </span>
-        )}
-        {playlist.source === 'oauth' && (
-          <span className="absolute top-2 left-2 bg-black/70 text-[#3ea6ff] text-[10px] px-1.5 py-0.5 rounded">
-            YouTube
-          </span>
-        )}
-        {playlist.source === 'personal' && (
-          <span className="absolute top-2 left-2 bg-black/70 text-[#ff8c00] text-[10px] px-1.5 py-0.5 rounded">
-            My List
-          </span>
-        )}
+        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#12171d] to-transparent" />
+        <span className={`absolute left-2 top-2 rounded border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide backdrop-blur ${sourceClass}`}>
+          {sourceLabel}
+        </span>
+        <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-[11px] font-medium text-white">
+          {playlist.videoCount} {playlist.videoCount === 1 ? 'video' : 'videos'}
+        </span>
       </div>
-      <div className="p-3 space-y-1">
+      <div className="space-y-2 p-3.5">
         <div className="relative flex items-start gap-2">
           <h3 className="min-w-0 flex-1 text-sm font-semibold text-white line-clamp-2 leading-snug">
             {playlist.title}
@@ -119,9 +123,9 @@ export default function PlaylistCard({
             </div>
           )}
         </div>
-        <p className="text-xs text-[#999]">{playlist.channelTitle}</p>
-        <p className="text-xs text-[#666]">
-          {playlist.videoCount} {playlist.videoCount === 1 ? 'video' : 'videos'}
+        <p className="truncate text-xs text-slate-400">{playlist.channelTitle}</p>
+        <p className="text-xs text-slate-600">
+          Updated {playlist.publishedAt ? new Date(playlist.publishedAt).toLocaleDateString() : 'recently'}
         </p>
       </div>
     </div>

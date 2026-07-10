@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.decorators import api_view, permission_classes
@@ -70,6 +72,28 @@ def login(request):
     serializer = LoginSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     return Response(auth_response_for_user(serializer.validated_data["user"]))
+
+
+@api_view(["POST"])
+def dev_login(request):
+    if not settings.DEBUG:
+        return Response(
+            {"detail": "Not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    user, created = User.objects.get_or_create(
+        username="dev",
+        defaults={
+            "email": "dev@example.com",
+            "first_name": "Development",
+        },
+    )
+    if created:
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+
+    return Response(auth_response_for_user(user))
 
 
 @api_view(["GET"])

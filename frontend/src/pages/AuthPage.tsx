@@ -55,92 +55,112 @@ export default function AuthPage({ mode }: AuthPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center px-6 py-10">
-      <main className="w-full max-w-md">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">
+    <div className="bg-app flex min-h-screen items-center justify-center px-6 py-10">
+      <main className="grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="hidden rounded-md border border-white/10 bg-[#101419]/80 p-8 lg:block">
+          <div className="mb-10 flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#e11d24]">
+              <span className="ml-0.5 h-0 w-0 border-y-[6px] border-l-[9px] border-y-transparent border-l-white" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-white">YT Study</p>
+              <p className="text-xs text-slate-500">Playlist workspace</p>
+            </div>
+          </div>
+          <h2 className="max-w-md text-3xl font-semibold tracking-tight text-white">
+            Build a focused library from the videos you already learn from.
+          </h2>
+          <div className="mt-8 grid gap-3">
+            {['Import public playlists', 'Sync from YouTube', 'Take autosaved markdown notes'].map((item) => (
+              <div key={item} className="surface-subtle rounded-md px-4 py-3 text-sm text-slate-300">
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="w-full max-w-md justify-self-center lg:max-w-none">
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
             {isRegister ? 'Create your account' : 'Welcome back'}
-          </h1>
-          <p className="mt-2 text-sm text-[#999]">
-            {isRegister
-              ? 'Register to start building your private playlist workspace.'
-              : 'Sign in to browse playlists, watch videos, and keep your notes.'}
-          </p>
-        </div>
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              {isRegister
+                ? 'Register to start building your private playlist workspace.'
+                : 'Sign in with your username or email to browse playlists, watch videos, and keep your notes.'}
+            </p>
+          </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-lg border border-[#333] bg-[#1a1a1a] p-5 space-y-4"
-        >
-          <label className="block">
-            <span className="text-sm font-medium text-[#e0e0e0]">Username</span>
-            <input
-              type="text"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="username"
-              required
-              className="mt-2 w-full rounded-md border border-[#444] bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none focus:border-[#cc0000]"
-            />
-          </label>
-
-          {isRegister && (
+          <form onSubmit={handleSubmit} className="surface space-y-4 rounded-md p-5">
             <label className="block">
-              <span className="text-sm font-medium text-[#e0e0e0]">Email</span>
+              <span className="text-sm font-medium text-slate-300">
+                {isRegister ? 'Username' : 'Username or email'}
+              </span>
               <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
                 required
-                className="mt-2 w-full rounded-md border border-[#444] bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none focus:border-[#cc0000]"
+                placeholder={isRegister ? 'northwhite' : 'northwhite or you@example.com'}
+                className="control mt-2 w-full rounded-md px-3 py-2 text-sm"
               />
             </label>
-          )}
 
-          <label className="block">
-            <span className="text-sm font-medium text-[#e0e0e0]">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete={isRegister ? 'new-password' : 'current-password'}
-              required
-              className="mt-2 w-full rounded-md border border-[#444] bg-[#2a2a2a] px-3 py-2 text-sm text-white outline-none focus:border-[#cc0000]"
-            />
-          </label>
+            {isRegister && (
+              <label className="block">
+                <span className="text-sm font-medium text-slate-300">Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  required
+                  className="control mt-2 w-full rounded-md px-3 py-2 text-sm"
+                />
+              </label>
+            )}
 
-          {error && (
-            <div className="rounded-md border border-[#7f1d1d] bg-[#2a1111] px-3 py-2 text-sm text-[#ffb4b4]">
-              {error}
-            </div>
-          )}
+            <label className="block">
+              <span className="text-sm font-medium text-slate-300">Password</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                required
+                className="control mt-2 w-full rounded-md px-3 py-2 text-sm"
+              />
+            </label>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md border-none bg-[#cc0000] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#e00000] disabled:cursor-not-allowed disabled:bg-[#661111] cursor-pointer"
-          >
-            {isSubmitting
-              ? isRegister
-                ? 'Creating account...'
-                : 'Signing in...'
-              : isRegister
-                ? 'Create account'
-                : 'Sign in'}
-          </button>
-        </form>
+            {error && (
+              <div className="rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {error}
+              </div>
+            )}
 
-        <p className="mt-5 text-center text-sm text-[#999]">
-          {isRegister ? 'Already have an account?' : 'Need an account?'}{' '}
-          <Link
-            to={isRegister ? '/login' : '/register'}
-            state={location.state}
-            className="font-semibold text-[#6cb6ff] hover:text-white"
-          >
-            {isRegister ? 'Sign in' : 'Register'}
-          </Link>
-        </p>
+            <button type="submit" disabled={isSubmitting} className="btn-primary w-full rounded-md px-4 py-2.5 text-sm font-semibold">
+              {isSubmitting
+                ? isRegister
+                  ? 'Creating account...'
+                  : 'Signing in...'
+                : isRegister
+                  ? 'Create account'
+                  : 'Sign in'}
+            </button>
+          </form>
+
+          <p className="mt-5 text-center text-sm text-slate-500">
+            {isRegister ? 'Already have an account?' : 'Need an account?'}{' '}
+            <Link
+              to={isRegister ? '/login' : '/register'}
+              state={location.state}
+              className="font-semibold text-blue-300 hover:text-white"
+            >
+              {isRegister ? 'Sign in' : 'Register'}
+            </Link>
+          </p>
+        </section>
       </main>
     </div>
   )

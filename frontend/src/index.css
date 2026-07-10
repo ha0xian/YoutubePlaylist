@@ -1,11 +1,125 @@
 @import "tailwindcss";
 
-/* Base reset and global styles */
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0f0f0f;
-  color: #e0e0e0;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: #0b0e12;
+  color: #e5e7eb;
+}
+
+body {
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.bg-app {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(225, 29, 36, 0.09), transparent 30%),
+    radial-gradient(circle at 88% 16%, rgba(37, 99, 235, 0.08), transparent 32%),
+    #0b0e12;
+}
+
+.surface {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(18, 23, 29, 0.86);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+}
+
+.surface-subtle {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.control {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(6, 9, 13, 0.58);
+  color: #f8fafc;
+  outline: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.control:focus {
+  border-color: rgba(225, 29, 36, 0.7);
+  box-shadow: 0 0 0 3px rgba(225, 29, 36, 0.16);
+}
+
+.control::placeholder {
+  color: #64748b;
+}
+
+.btn-primary {
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  background: #d91f27;
+  color: white;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: #ef2b34;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled {
+  opacity: 0.48;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5e7eb;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.btn-secondary:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-ghost {
+  color: #94a3b8;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.btn-ghost:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8fafc;
+}
+
+.scrollbar-thin {
+  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
 }
 
 /* Markdown preview styles — rendered HTML from marked can't have Tailwind classes */
@@ -61,15 +175,15 @@ html, body, #root {
 }
 
 .markdown-editor {
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: #0d1117;
+  color: #e5e7eb;
   font-size: 14px;
 }
 
 .markdown-editor .cm-editor {
   height: 100%;
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: #0d1117;
+  color: #e5e7eb;
   outline: none;
 }
 
@@ -80,6 +194,8 @@ html, body, #root {
 .markdown-editor .cm-scroller {
   padding: 16px;
   line-height: 1.6;
+  scrollbar-color: rgba(148, 163, 184, 0.34) transparent;
+  scrollbar-width: thin;
 }
 
 .markdown-editor .cm-content {
@@ -97,7 +213,7 @@ html, body, #root {
 }
 
 .markdown-editor .cm-placeholder {
-  color: #777;
+  color: #64748b;
 }
 
 .markdown-editor .cm-selectionBackground,

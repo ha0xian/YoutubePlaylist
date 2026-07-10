@@ -36,9 +36,7 @@ export default function PlaylistDetail() {
       })
       .catch((err) => {
         if (version === fetchVersionRef.current) {
-          setError(
-            err instanceof Error ? err.message : 'Failed to load playlist.',
-          )
+          setError(err instanceof Error ? err.message : 'Failed to load playlist.')
           setIsLoading(false)
         }
       })
@@ -58,9 +56,7 @@ export default function PlaylistDetail() {
         setIsRefreshing(false)
       })
       .catch((err) => {
-        setError(
-          err instanceof Error ? err.message : 'Failed to refresh playlist.',
-        )
+        setError(err instanceof Error ? err.message : 'Failed to refresh playlist.')
         setIsRefreshing(false)
       })
   }
@@ -74,20 +70,14 @@ export default function PlaylistDetail() {
         navigate('/')
       })
       .catch((err) => {
-        setError(
-          err instanceof Error ? err.message : 'Failed to unlink playlist.',
-        )
+        setError(err instanceof Error ? err.message : 'Failed to unlink playlist.')
         setIsUnlinking(false)
       })
   }
 
-  // Auto-select first video when playlist loads, fall back if selected is no longer in list
   const effectiveVideoId = (() => {
     if (!playlist || playlist.videos.length === 0) return null
-    if (
-      selectedVideoId &&
-      playlist.videos.some((v) => v.youtubeVideoId === selectedVideoId)
-    ) {
+    if (selectedVideoId && playlist.videos.some((v) => v.youtubeVideoId === selectedVideoId)) {
       return selectedVideoId
     }
     return playlist.videos[0].youtubeVideoId
@@ -98,23 +88,20 @@ export default function PlaylistDetail() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
-        <p className="text-sm text-[#999]">Loading playlist...</p>
+      <div className="bg-app flex min-h-screen items-center justify-center">
+        <div className="surface rounded-md px-5 py-4 text-sm text-slate-400">Loading playlist...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
-          <p className="text-sm text-[#999] mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-[#6cb6ff] hover:text-white transition-colors cursor-pointer bg-transparent border-none"
-          >
-            Back to all playlists
+      <div className="bg-app flex min-h-screen items-center justify-center p-6">
+        <div className="surface max-w-md rounded-md p-6 text-center">
+          <h2 className="text-xl font-semibold text-white">Something went wrong</h2>
+          <p className="mt-2 text-sm text-slate-400">{error}</p>
+          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-md px-4 py-2 text-sm font-semibold">
+            Back to library
           </button>
         </div>
       </div>
@@ -123,14 +110,11 @@ export default function PlaylistDetail() {
 
   if (!playlist) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-white mb-2">Playlist not found</h2>
-          <button
-            onClick={() => navigate('/')}
-            className="text-sm text-[#6cb6ff] hover:text-white transition-colors cursor-pointer bg-transparent border-none"
-          >
-            Back to all playlists
+      <div className="bg-app flex min-h-screen items-center justify-center p-6">
+        <div className="surface max-w-md rounded-md p-6 text-center">
+          <h2 className="text-xl font-semibold text-white">Playlist not found</h2>
+          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-md px-4 py-2 text-sm font-semibold">
+            Back to library
           </button>
         </div>
       </div>
@@ -138,110 +122,105 @@ export default function PlaylistDetail() {
   }
 
   return (
-    <div className="h-screen bg-[#0f0f0f] flex flex-col overflow-hidden">
-      <header className="shrink-0 bg-[#0f0f0f]/95 backdrop-blur-sm border-b border-[#333]">
-        <div className="flex items-center justify-between gap-4 px-6 py-3">
-          <div className="flex items-center gap-4 min-w-0">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none shrink-0"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Back
-            </button>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-white truncate">{playlist.title}</h1>
-              <p className="text-xs text-[#999] mt-0.5">
-                {playlist.channelTitle} &middot; {playlist.videoCount} videos
-              </p>
+    <div className="bg-app flex h-screen flex-col overflow-hidden text-slate-100">
+      <header className="shrink-0 border-b border-white/10 bg-[#0b0e12]/90 px-4 py-3 backdrop-blur-xl sm:px-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
+              <button onClick={() => navigate('/')} className="btn-ghost rounded-md px-2 py-1">
+                Back
+              </button>
+              <span>/</span>
+              <span>Playlists</span>
+              <span>/</span>
+              <span className="truncate text-slate-300">{playlist.title}</span>
             </div>
+            <h1 className="truncate text-lg font-semibold text-white">{playlist.title}</h1>
+            <p className="mt-1 truncate text-xs text-slate-500">
+              {playlist.channelTitle} - {playlist.videoCount} videos
+              {playlist.description ? ` - ${playlist.description}` : ''}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[240px] flex-1 xl:w-80 xl:flex-none">
+              <input
+                disabled
+                title="To be implemented later"
+                placeholder="Search in this playlist..."
+                className="control w-full rounded-md px-3 py-2 text-sm disabled:opacity-60"
+              />
+            </div>
             {playlist.source !== 'personal' && (
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="flex items-center gap-1.5 text-sm text-[#999] hover:text-white transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
+                className="btn-secondary rounded-md px-3 py-2 text-sm font-semibold"
                 title="Refresh playlist from YouTube"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className={isRefreshing ? 'animate-spin' : ''}
-                >
-                  <polyline points="23 4 23 10 17 10" />
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                </svg>
-                {isRefreshing ? 'Refreshing…' : 'Refresh'}
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
               </button>
             )}
             <button
               onClick={handleUnlink}
               disabled={isUnlinking}
-              className="flex items-center gap-1.5 text-sm text-[#999] hover:text-[#ff6b6b] transition-colors cursor-pointer bg-transparent border-none disabled:opacity-50"
+              className="rounded-md border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/15 disabled:opacity-50"
               title="Unlink playlist"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-              {isUnlinking ? 'Unlinking…' : 'Unlink'}
+              {isUnlinking ? 'Unlinking...' : 'Unlink'}
+            </button>
+            <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-sm">
+              More
             </button>
             <UserMenu />
           </div>
         </div>
-        {playlist.description && (
-          <p className="text-sm text-[#999] px-6 pb-3 truncate">{playlist.description}</p>
-        )}
       </header>
 
       {playlist.videos.length === 0 ? (
-        <main className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-[#999]">This playlist has no videos.</p>
+        <main className="flex flex-1 items-center justify-center p-6">
+          <div className="surface-subtle rounded-md p-8 text-sm text-slate-400">This playlist has no videos.</div>
         </main>
       ) : (
-        <main className="flex-1 flex overflow-hidden">
-          {/* Left: YouTube player */}
-          <div className="flex-[7] flex flex-col bg-black min-w-0">
+        <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_390px]">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-md border border-white/10 bg-black shadow-2xl">
             {effectiveVideo?.isRemoved && (
-              <div className="bg-[#cc0000]/10 border-b border-[#cc0000]/30 px-4 py-2 text-center">
-                <p className="text-xs text-[#cc0000]">
-                  This video was removed from the source playlist.
-                </p>
+              <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">
+                This video is unavailable or has been removed.
               </div>
             )}
-            <YouTubePlayer
-              key={effectiveVideoId ?? 'no-video'}
-              initialVideoId={effectiveVideoId ?? undefined}
-            />
-          </div>
-          {/* Right: notes + video list */}
-          <div className="flex-[3] flex flex-col border-l border-[#333] min-w-[360px]">
-            <div className="h-[45%] overflow-hidden">
-              <MarkdownNotes
-                key={effectiveVideoId ?? 'no-video'}
-                videoId={effectiveVideoId ?? undefined}
-              />
+            <div className="min-h-[320px] flex-1">
+              <YouTubePlayer key={effectiveVideoId ?? 'no-video'} initialVideoId={effectiveVideoId ?? undefined} />
             </div>
-            <div className="flex-1 overflow-y-auto border-t border-[#333]">
-              {playlist.videos.map((video) => (
-                <VideoListItem
-                  key={video.id}
-                  video={video}
-                  isSelected={video.youtubeVideoId === effectiveVideoId}
-                  onSelect={(v) => setSelectedVideoId(v.youtubeVideoId)}
-                />
-              ))}
-            </div>
-          </div>
+          </section>
+
+          <aside className="grid min-h-0 grid-rows-[minmax(220px,0.95fr)_minmax(260px,1.05fr)] gap-4">
+            <section className="surface flex min-h-0 flex-col overflow-hidden rounded-md">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-white">Queue</h2>
+                  <p className="text-xs text-slate-500">{playlist.videos.length} videos</p>
+                </div>
+                <button type="button" disabled title="To be implemented later" className="btn-ghost rounded-md px-2 py-1 text-xs">
+                  Remove watched
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+                {playlist.videos.map((video) => (
+                  <VideoListItem
+                    key={video.id}
+                    video={video}
+                    isSelected={video.youtubeVideoId === effectiveVideoId}
+                    onSelect={(v) => setSelectedVideoId(v.youtubeVideoId)}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="surface min-h-0 overflow-hidden rounded-md">
+              <MarkdownNotes key={effectiveVideoId ?? 'no-video'} videoId={effectiveVideoId ?? undefined} />
+            </section>
+          </aside>
         </main>
       )}
     </div>

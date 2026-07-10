@@ -200,6 +200,18 @@ class AuthLoginTests(APITestCase):
         token = Token.objects.get(key=token_key)
         self.assertEqual(token.user, self.user)
 
+    def test_login_accepts_email(self):
+        response = self.client.post(
+            self.login_url,
+            {"username": "LOGINUSER@example.com", "password": self.password},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["username"], self.username)
+        token = Token.objects.get(key=response.data["token"])
+        self.assertEqual(token.user, self.user)
+
     def test_login_returns_same_token_on_subsequent_login(self):
         first = self.client.post(
             self.login_url,
@@ -260,6 +272,29 @@ class AuthLoginTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("password", response.data)
+
+
+class AuthDevLoginTests(APITestCase):
+    def setUp(self):
+        self.dev_login_url = "/api/auth/dev-login/"
+
+    @override_settings(DEBUG=True)
+    def test_dev_login_creates_dev_user_and_returns_token_when_debug_enabled(self):
+        response = self.client.post(self.dev_login_url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.data)
+        self.assertEqual(response.data["user"]["username"], "dev")
+        self.assertEqual(response.data["user"]["email"], "dev@example.com")
+        self.assertTrue(User.objects.filter(username="dev").exists())
+        self.assertTrue(Token.objects.filter(key=response.data["token"]).exists())
+
+    @override_settings(DEBUG=False)
+    def test_dev_login_is_not_available_when_debug_disabled(self):
+        response = self.client.post(self.dev_login_url, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(User.objects.filter(username="dev").exists())
 
 
 class AuthCurrentUserTests(APITestCase):
