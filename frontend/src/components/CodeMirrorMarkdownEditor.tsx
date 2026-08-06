@@ -6,12 +6,14 @@ import type { Extension } from '@codemirror/state'
 import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view'
 import { markdownEnterKeymap } from '../lib/markdownEditorCommands'
 import { markdownLivePreview } from '../lib/markdownLivePreview'
+import { markdownSlashMenu } from '../lib/markdownSlashMenu'
 
 interface CodeMirrorMarkdownEditorProps {
   value: string
   onChange: (value: string) => void
   livePreview: boolean
   placeholder?: string
+  insertTimestamp?: () => string | null
 }
 
 export default function CodeMirrorMarkdownEditor({
@@ -19,6 +21,7 @@ export default function CodeMirrorMarkdownEditor({
   onChange,
   livePreview,
   placeholder,
+  insertTimestamp,
 }: CodeMirrorMarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<EditorView | null>(null)
@@ -27,10 +30,15 @@ export default function CodeMirrorMarkdownEditor({
   const initialValueRef = useRef(value)
   const initialLivePreviewRef = useRef(livePreview)
   const initialPlaceholderRef = useRef(placeholder)
+  const insertTimestampRef = useRef(insertTimestamp)
 
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(() => {
+    insertTimestampRef.current = insertTimestamp
+  }, [insertTimestamp])
 
   useEffect(() => {
     if (!hostRef.current) {
@@ -54,6 +62,9 @@ export default function CodeMirrorMarkdownEditor({
         '.cm-scroller': {
           fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
         },
+      }),
+      markdownSlashMenu({
+        insertTimestamp: () => insertTimestampRef.current?.() ?? null,
       }),
       livePreviewCompartmentRef.current.of(
         initialLivePreviewRef.current ? markdownLivePreview() : [],

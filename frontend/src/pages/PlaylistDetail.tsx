@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
 import VideoListItem from '../components/VideoListItem'
 import YouTubePlayer from '../components/YouTubePlayer'
+import type { YouTubePlayerHandle } from '../components/YouTubePlayer'
 import MarkdownNotes from '../components/MarkdownNotes'
 import UserMenu from '../components/UserMenu'
 
@@ -21,6 +22,7 @@ export default function PlaylistDetail() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isUnlinking, setIsUnlinking] = useState(false)
   const fetchVersionRef = useRef(0)
+  const playerRef = useRef<YouTubePlayerHandle | null>(null)
 
   useEffect(() => {
     if (!id || !token) return
@@ -190,7 +192,11 @@ export default function PlaylistDetail() {
               </div>
             )}
             <div className="min-h-[320px] flex-1">
-              <YouTubePlayer key={effectiveVideoId ?? 'no-video'} initialVideoId={effectiveVideoId ?? undefined} />
+              <YouTubePlayer
+                key={effectiveVideoId ?? 'no-video'}
+                ref={playerRef}
+                initialVideoId={effectiveVideoId ?? undefined}
+              />
             </div>
           </section>
 
@@ -218,7 +224,12 @@ export default function PlaylistDetail() {
             </section>
 
             <section className="surface min-h-0 overflow-hidden rounded-md">
-              <MarkdownNotes key={effectiveVideoId ?? 'no-video'} videoId={effectiveVideoId ?? undefined} />
+              <MarkdownNotes
+                key={effectiveVideoId ?? 'no-video'}
+                videoId={effectiveVideoId ?? undefined}
+                getCurrentTime={() => playerRef.current?.getCurrentTime() ?? null}
+                onSeekToTime={(seconds) => playerRef.current?.seekTo(seconds)}
+              />
             </section>
           </aside>
         </main>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import CodeMirrorMarkdownEditor from './CodeMirrorMarkdownEditor'
@@ -11,13 +11,28 @@ type MarkdownEditorMode = 'source' | 'live-preview'
 
 interface MarkdownNotesProps {
   videoId?: string
+  getCurrentTime?: () => number | null
+  onSeekToTime?: (seconds: number) => void
+}
+
+function formatTimestamp(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
 function readEditorMode(): MarkdownEditorMode {
   return localStorage.getItem(EDITOR_MODE_KEY) === 'source' ? 'source' : 'live-preview'
 }
 
-export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
+export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }: MarkdownNotesProps) {
   const { token } = useAuth()
   const noteKey = token && videoId ? `${token}:${videoId}` : ''
 
@@ -134,6 +149,29 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
     return { __html: DOMPurify.sanitize(html) }
   }, [notes])
 
+  const insertTimestamp = useCallback(() => {
+    const seconds = Math.max(0, Math.floor(getCurrentTime?.() ?? 0))
+    return `[${formatTimestamp(seconds)}](#t=${seconds})`
+  }, [getCurrentTime])
+
+  const handlePreviewClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      return
+    }
+
+    const link = target.closest('a')
+    const href = link?.getAttribute('href') ?? ''
+    const match = /^#t=(\d+)$/.exec(href)
+
+    if (!match) {
+      return
+    }
+
+    event.preventDefault()
+    onSeekToTime?.(Number(match[1]))
+  }, [onSeekToTime])
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#11161c] px-4 py-3">
@@ -194,6 +232,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
           <div
             className="markdown-preview scrollbar-thin h-full overflow-y-auto p-4"
             dangerouslySetInnerHTML={renderedHtml()}
+            onClick={handlePreviewClick}
             style={{ lineHeight: 1.6 }}
           />
         ) : (
@@ -208,6 +247,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
               onChange={setNotes}
               livePreview={editorMode === 'live-preview'}
               placeholder="Write your notes here..."
+              insertTimestamp={insertTimestamp}
             />
           </>
         )}

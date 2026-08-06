@@ -1,5 +1,7 @@
 import { useParams, useLocation, Navigate, useNavigate } from 'react-router-dom'
+import { useRef } from 'react'
 import YouTubePlayer from '../components/YouTubePlayer'
+import type { YouTubePlayerHandle } from '../components/YouTubePlayer'
 import MarkdownNotes from '../components/MarkdownNotes'
 import UserMenu from '../components/UserMenu'
 
@@ -7,6 +9,7 @@ export default function WatchPage() {
   const { videoId } = useParams<{ videoId: string }>()
   const location = useLocation()
   const navigate = useNavigate()
+  const playerRef = useRef<YouTubePlayerHandle | null>(null)
 
   if (!videoId) return <Navigate to="/" replace />
 
@@ -43,10 +46,15 @@ export default function WatchPage() {
               This video is unavailable or has been removed.
             </div>
           )}
-          <YouTubePlayer key={videoId} initialVideoId={videoId} />
+          <YouTubePlayer key={videoId} ref={playerRef} initialVideoId={videoId} />
         </section>
         <section className="surface min-h-0 overflow-hidden rounded-md">
-          <MarkdownNotes key={videoId} videoId={videoId} />
+          <MarkdownNotes
+            key={videoId}
+            videoId={videoId}
+            getCurrentTime={() => playerRef.current?.getCurrentTime() ?? null}
+            onSeekToTime={(seconds) => playerRef.current?.seekTo(seconds)}
+          />
         </section>
       </main>
     </div>

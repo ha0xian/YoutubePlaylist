@@ -310,3 +310,104 @@ button:disabled {
   background: #202020;
   color: #d8d8d8;
 }
+
+.cm-slash-menu {
+  position: fixed;
+  z-index: 60;
+  width: min(320px, calc(100vw - 20px));
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: rgba(15, 20, 27, 0.98);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
+  color: #e5e7eb;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
+.cm-slash-menu-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.cm-slash-menu-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  width: 100%;
+  min-height: 54px;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  padding: 8px 10px;
+  color: inherit;
+  text-align: left;
+}
+
+.cm-slash-menu-item:last-child {
+  border-bottom: 0;
+}
+
+.cm-slash-menu-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cm-slash-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+  font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  font-size: 12px;
+}
+
+.cm-slash-menu-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cm-slash-menu-title {
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-slash-menu-description {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-slash-menu-status {
+  border: 1px solid rgba(59, 130, 246, 0.24);
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #bfdbfe;
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.cm-slash-menu-empty {
+  padding: 12px 10px;
+  color: #94a3b8;
+  font-size: 13px;
+}

@@ -1,6 +1,65 @@
-import { useState, useCallback } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 
 const STORAGE_KEY = 'youtube-video-id'
+
+interface YouTubePlayerApi {
+  getCurrentTime: () => number
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void
+  loadVideoById: (videoId: string) => void
+  destroy: () => void
+}
+
+interface YouTubeIframeApi {
+  Player: new (
+    element: HTMLElement,
+    options: {
+      videoId: string
+      width?: string
+      height?: string
+      playerVars?: Record<string, string | number>
+      events?: {
+        onReady?: () => void
+      }
+    },
+  ) => YouTubePlayerApi
+}
+
+declare global {
+  interface Window {
+    YT?: YouTubeIframeApi
+    onYouTubeIframeAPIReady?: () => void
+  }
+}
+
+let youtubeApiPromise: Promise<YouTubeIframeApi> | null = null
+
+function loadYouTubeIframeApi() {
+  if (window.YT?.Player) {
+    return Promise.resolve(window.YT)
+  }
+
+  if (!youtubeApiPromise) {
+    youtubeApiPromise = new Promise((resolve) => {
+      const previousReady = window.onYouTubeIframeAPIReady
+
+      window.onYouTubeIframeAPIReady = () => {
+        previousReady?.()
+        if (window.YT) {
+          resolve(window.YT)
+        }
+      }
+
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script')
+        script.src = 'https://www.youtube.com/iframe_api'
+        script.async = true
+        document.body.appendChild(script)
+      }
+    })
+  }
+
+  return youtubeApiPromise
+}
 
 function extractVideoId(url: string): string | null {
   const trimmed = url.trim()
@@ -30,11 +89,21 @@ interface YouTubePlayerProps {
   initialVideoId?: string
 }
 
-export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
+export interface YouTubePlayerHandle {
+  getCurrentTime: () => number | null
+  seekTo: (seconds: number) => void
+}
+
+const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(function YouTubePlayer(
+  { initialVideoId },
+  ref,
+) {
   const [videoId, setVideoId] = useState(
     () => initialVideoId || localStorage.getItem(STORAGE_KEY) || ''
   )
   const [inputValue, setInputValue] = useState(videoId)
+  const playerHostRef = useRef<HTMLDivElement | null>(null)
+  const playerRef = useRef<YouTubePlayerApi | null>(null)
 
   const handleLoad = useCallback(() => {
     const id = extractVideoId(inputValue)
@@ -43,6 +112,58 @@ export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
       localStorage.setItem(STORAGE_KEY, id)
     }
   }, [inputValue])
+
+  useImperativeHandle(ref, () => ({
+    getCurrentTime: () => {
+      try {
+        return playerRef.current?.getCurrentTime() ?? null
+      } catch {
+        return null
+      }
+    },
+    seekTo: (seconds: number) => {
+      playerRef.current?.seekTo(seconds, true)
+    },
+  }), [])
+
+  useEffect(() => {
+    if (!videoId || !playerHostRef.current) {
+      return undefined
+    }
+
+    let isActive = true
+
+    loadYouTubeIframeApi().then((YT) => {
+      if (!isActive || !playerHostRef.current) {
+        return
+      }
+
+      if (playerRef.current) {
+        playerRef.current.loadVideoById(videoId)
+        return
+      }
+
+      playerRef.current = new YT.Player(playerHostRef.current, {
+        videoId,
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          enablejsapi: 1,
+          origin: window.location.origin,
+          playsinline: 1,
+        },
+      })
+    })
+
+    return () => {
+      isActive = false
+    }
+  }, [videoId])
+
+  useEffect(() => () => {
+    playerRef.current?.destroy()
+    playerRef.current = null
+  }, [])
 
   return (
     <div className="flex flex-col h-full">
@@ -65,13 +186,7 @@ export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
 
       <div className="flex-1 bg-black">
         {videoId ? (
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}`}
-            title="YouTube video player"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="w-full h-full border-none"
-          />
+          <div ref={playerHostRef} className="h-full w-full" />
         ) : (
           <div className="flex h-full items-center justify-center text-base text-slate-600">
             Enter a YouTube URL above to start watching
@@ -80,4 +195,6 @@ export default function YouTubePlayer({ initialVideoId }: YouTubePlayerProps) {
       </div>
     </div>
   )
-}
+})
+
+export default YouTubePlayer
