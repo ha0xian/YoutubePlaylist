@@ -122,6 +122,59 @@ button:disabled {
   border-radius: 999px;
 }
 
+.notes-workspace-tabs {
+  display: inline-flex;
+  gap: 4px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 3px;
+}
+
+.notes-workspace-tab {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.notes-workspace-tab[aria-selected="true"] {
+  border-color: rgba(96, 165, 250, 0.25);
+  background: rgba(59, 130, 246, 0.16);
+  color: #dbeafe;
+}
+
+.notes-workspace-tab:focus-visible,
+.ai-prompt-card:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.ai-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+}
+
+.ai-prompt-card {
+  display: flex;
+  min-height: 72px;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px;
+  color: #f8fafc;
+  text-align: left;
+}
+
+.ai-prompt-card:hover { background: rgba(255, 255, 255, 0.07); }
+.ai-prompt-card strong { font-size: 12px; }
+.ai-prompt-card span { color: #94a3b8; font-size: 11px; line-height: 1.35; }
+.ai-result { max-height: 46vh; overflow-y: auto; }
+
 /* Markdown preview styles — rendered HTML from marked can't have Tailwind classes */
 .markdown-preview h1,
 .markdown-preview h2,
