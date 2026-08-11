@@ -6,11 +6,18 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Note, Playlist
+from .gemini import (
+    GeminiConfigurationError,
+    GeminiProviderError,
+    analyze_youtube_video,
+)
+from .models import Note, Playlist, UserAISettings, Video
 from .serializers import (
     LoginSerializer,
     NoteSerializer,
     PersonalVideoImportSerializer,
+    UserAISettingsSerializer,
+    VideoAnalysisRequestSerializer,
     PlaylistDetailSerializer,
     PlaylistSerializer,
     PlaylistUrlImportSerializer,
@@ -306,6 +313,65 @@ def note_detail(request, video_id):
         defaults={"content": serializer.validated_data["content"]},
     )
     return Response(NoteSerializer(note).data)
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated])
+def ai_settings(request):
+    if request.method == "GET":
+        user_settings = UserAISettings.objects.filter(user=request.user).first()
+        if user_settings is None:
+            return Response({
+                "default_prompt": "",
+                "created_at": None,
+                "updated_at": None,
+            })
+        return Response(UserAISettingsSerializer(user_settings).data)
+
+    serializer = UserAISettingsSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user_settings, _ = UserAISettings.objects.update_or_create(
+        user=request.user,
+        defaults={"default_prompt": serializer.validated_data["default_prompt"]},
+    )
+    return Response(UserAISettingsSerializer(user_settings).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def analyze_video(request, video_id):
+    serializer = VideoAnalysisRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    owns_video = Video.objects.filter(
+        youtube_video_id=video_id,
+        playlist__user=request.user,
+        playlist__is_unlinked=False,
+    ).exists()
+    if not owns_video:
+        return Response(
+            {"detail": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        content = analyze_youtube_video(
+            video_url,
+            serializer.validated_data["prompt"],
+        )
+    except GeminiConfigurationError:
+        return Response(
+            {"detail": "Video analysis is temporarily unavailable."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    except GeminiProviderError:
+        return Response(
+            {"detail": "Video analysis failed. Please try again later."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response({"video_id": video_id, "content": content})
 
 
 # ── YouTube OAuth views ──────────────────────────────────────────────────
