@@ -17,6 +17,7 @@ frontend code surface rather than planning documents.
 - **YouTube player component** -- `frontend/src/components/YouTubePlayer.tsx` embeds a YouTube iframe, accepts URL/video ID input, supports Enter-to-load, and persists the last video ID in `localStorage`.
 - **Video list item UI** -- `frontend/src/components/VideoListItem.tsx` renders thumbnail, duration, title, channel, formatted view count, and selected-video behavior.
 - **Markdown notes editor** -- `frontend/src/components/MarkdownNotes.tsx` provides CodeMirror Source, Obsidian-style Live Preview, and full `marked` preview modes; notes are stored per video in `localStorage`.
+- **Notes/AI Analysis workspace** -- accessible peer tabs preserve the note editor while providing editable prompt presets, explicit default-prompt persistence, sanitized Gemini Markdown previews, and confirmed append/replace actions.
 - **Dark theme styling** -- the current CSS and components use a fixed dark UI with red accent styling.
 - **Playlist/video TypeScript types** -- `frontend/src/types/playlist.ts` defines the frontend `Playlist`, `PlaylistDetail`, and `Video` shapes used by the API client.
 - **Django + Django REST Framework backend** -- `backend/config/settings.py`, `backend/config/urls.py`, and `backend/api/urls.py` expose the backend app under `/api/`.
@@ -25,6 +26,7 @@ frontend code surface rather than planning documents.
 - **Public playlist URL import** -- `backend/api/youtube.py` imports playlist and video metadata from the YouTube Data API v3 using `YOUTUBE_API_KEY`.
 - **Database-backed playlists and videos** -- `backend/api/models.py` defines per-user `Playlist` rows and related `Video` rows with uniqueness constraints.
 - **Per-user database notes** -- `backend/api/models.py` defines a `Note` model, `backend/api/views.py` provides a `PUT`/`GET` endpoint at `/api/notes/<video_id>/`, and the frontend `MarkdownNotes` component writes through it.
+- **Authenticated Gemini video analysis** -- per-user AI settings and an ownership-checked analysis endpoint keep the Gemini key server-side and map provider failures to generic API errors. Analysis is limited to public videos in active playlists owned by the current user.
 - **YouTube OAuth integration** -- `backend/api/models.py` includes `YouTubeOAuthToken` for encrypted token storage; `backend/api/encryption.py` provides Fernet helpers; `backend/api/youtube_oauth.py` handles auth URL, code exchange, token refresh, channel profile, remote playlist listing, and selected OAuth playlist import; `/api/youtube/auth-url/`, `/api/youtube/callback/`, `/api/youtube/status/`, `/api/youtube/playlists/`, `/api/youtube/playlists/import/`, and `/api/youtube/disconnect/` endpoints are available in `backend/api/views.py`; the frontend exposes `Connect YouTube` / `Disconnect` controls, OAuth callback handling, and a remote playlist picker for selective import in `PlaylistBrowser.tsx`. OAuth callback links the account only and does not automatically import every YouTube playlist.
 - **Focused backend tests** -- `backend/api/tests.py` covers auth, playlist import, user scoping, re-import behavior, import error handling, encryption, OAuth auth-url, callback validation, successful OAuth callback, source preservation, disconnect, and multi-user isolation.
 
@@ -36,7 +38,7 @@ frontend code surface rather than planning documents.
 - **Dark/light theme toggle** -- the UI has a fixed dark theme; no theme state, toggle control, or persisted theme preference exists.
 - **Search and filtering** -- there is no playlist or video search/filter UI or backend query support.
 - **Manual playlist refresh/sync** -- imports and re-imports happen through the import endpoint only; there is no dedicated refresh/sync action.
-- **AI/Gemini analysis and chat** -- there are no backend or frontend modules for AI analysis, summaries, or chat.
+- **AI chat and analysis history** -- video analysis is available, but multi-turn chat, streaming, and persisted generated-output history are not implemented.
 - **Production CORS hardening** -- `backend/config/settings.py` still sets `CORS_ALLOW_ALL_ORIGINS = True`.
 - **Settings** -- Different settings option on layout
 - User is able to insert the timestamp of the video into the note, when type /time, and the timestamp in the preview, is linked to the video of that time

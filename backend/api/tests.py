@@ -7,6 +7,9 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
 
+from .gemini import GeminiConfigurationError, GeminiProviderError
+from .models import Playlist, UserAISettings, Video
+
 
 # ── Helper factories ──────────────────────────────────────────────────────
 
@@ -2767,3 +2770,87 @@ class YouTubeOAuthStatusTests(APITestCase):
         self.assertTrue(response.data["connected"])
         self.assertEqual(response.data["channel_id"], "UC123")
         self.assertEqual(response.data["channel_title"], "My Channel")
+
+
+class AISettingsTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="ai-user", password="safe-pass")
+        self.other_user = User.objects.create_user(username="ai-other", password="safe-pass")
+        self.token = Token.objects.create(user=self.user)
+        self.url = "/api/ai/settings/"
+
+    def auth(self):
+        return {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
+
+    def test_settings_require_authentication(self):
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self.client.put(self.url, {"default_prompt": "x"}).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_without_row_is_empty_and_does_not_create(self):
+        response = self.client.get(self.url, **self.auth())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"default_prompt": "", "created_at": None, "updated_at": None})
+        self.assertFalse(UserAISettings.objects.filter(user=self.user).exists())
+
+    def test_put_creates_updates_and_clears_only_current_user(self):
+        other = UserAISettings.objects.create(user=self.other_user, default_prompt="private")
+        for prompt in ("first", "updated", ""):
+            response = self.client.put(self.url, {"default_prompt": prompt}, format="json", **self.auth())
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data["default_prompt"], prompt)
+        other.refresh_from_db()
+        self.assertEqual(other.default_prompt, "private")
+
+
+class VideoAnalysisTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="video-ai", password="safe-pass")
+        self.other_user = User.objects.create_user(username="video-other", password="safe-pass")
+        self.token = Token.objects.create(user=self.user)
+        self.playlist = Playlist.objects.create(user=self.user, youtube_playlist_id="PL-ai", title="AI", channel_title="Channel")
+        self.video = Video.objects.create(playlist=self.playlist, youtube_video_id="dQw4w9WgXcQ", position=0, title="Video", channel_title="Channel", duration="PT1M")
+        self.url = f"/api/videos/{self.video.youtube_video_id}/analyze/"
+
+    def auth(self):
+        return {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
+
+    @patch("api.views.analyze_youtube_video")
+    def test_auth_and_prompt_validation_do_not_call_provider(self, analyze):
+        self.assertEqual(self.client.post(self.url, {"prompt": "x"}).status_code, status.HTTP_401_UNAUTHORIZED)
+        for payload in ({}, {"prompt": "   "}, {"prompt": "x" * 5001}):
+            response = self.client.post(self.url, payload, format="json", **self.auth())
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        analyze.assert_not_called()
+
+    @patch("api.views.analyze_youtube_video")
+    def test_unknown_unlinked_and_other_users_videos_are_hidden(self, analyze):
+        missing = self.client.post("/api/videos/aaaaaaaaaaa/analyze/", {"prompt": "test"}, format="json", **self.auth())
+        self.assertEqual(missing.status_code, status.HTTP_404_NOT_FOUND)
+        self.playlist.is_unlinked = True
+        self.playlist.save(update_fields=["is_unlinked"])
+        self.assertEqual(self.client.post(self.url, {"prompt": "test"}, format="json", **self.auth()).status_code, status.HTTP_404_NOT_FOUND)
+        other_playlist = Playlist.objects.create(user=self.other_user, youtube_playlist_id="PL-other-ai", title="Other", channel_title="Channel")
+        Video.objects.create(playlist=other_playlist, youtube_video_id="otherVideo1", position=0, title="Other", channel_title="Channel", duration="PT1M")
+        self.assertEqual(self.client.post("/api/videos/otherVideo1/analyze/", {"prompt": "test"}, format="json", **self.auth()).status_code, status.HTTP_404_NOT_FOUND)
+        analyze.assert_not_called()
+
+    @patch("api.views.analyze_youtube_video", return_value="## Summary")
+    def test_owned_video_returns_analysis(self, analyze):
+        response = self.client.post(self.url, {"prompt": "  summarize  "}, format="json", **self.auth())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"video_id": "dQw4w9WgXcQ", "content": "## Summary"})
+        analyze.assert_called_once_with("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "summarize")
+
+    @patch("api.views.analyze_youtube_video", side_effect=GeminiConfigurationError("secret-key"))
+    def test_configuration_error_is_safe(self, analyze):
+        response = self.client.post(self.url, {"prompt": "private prompt"}, format="json", **self.auth())
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertNotIn("secret-key", str(response.data))
+        self.assertNotIn("private prompt", str(response.data))
+
+    @patch("api.views.analyze_youtube_video", side_effect=GeminiProviderError("raw body"))
+    def test_provider_error_is_safe(self, analyze):
+        response = self.client.post(self.url, {"prompt": "private prompt"}, format="json", **self.auth())
+        self.assertEqual(response.status_code, status.HTTP_502_BAD_GATEWAY)
+        self.assertNotIn("raw body", str(response.data))
+        self.assertNotIn("private prompt", str(response.data))

@@ -39,6 +39,10 @@ _load_dotenv(BASE_DIR / ".env")
 # YouTube Data API v3 key for public playlist imports
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY", "")
 
+# Server-only Gemini video analysis configuration
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+
 # ── YouTube OAuth configuration ──────────────────────────────────────────
 
 YOUTUBE_OAUTH_CLIENT_ID = os.environ.get("YOUTUBE_OAUTH_CLIENT_ID", "")

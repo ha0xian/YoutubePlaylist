@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.db.models import Q
 from rest_framework import serializers
 
-from .models import Note, Playlist, Video
+from .models import Note, Playlist, UserAISettings, Video
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -145,3 +145,17 @@ class NoteSerializer(serializers.ModelSerializer):
         fields = ("id", "youtube_video_id", "content", "created_at", "updated_at")
         read_only_fields = ("id", "youtube_video_id", "created_at", "updated_at")
         extra_kwargs = {"content": {"required": True, "allow_blank": True}}
+
+
+class UserAISettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserAISettings
+        fields = ("default_prompt", "created_at", "updated_at")
+        read_only_fields = ("created_at", "updated_at")
+        extra_kwargs = {"default_prompt": {"required": True, "allow_blank": True}}
+
+
+class VideoAnalysisRequestSerializer(serializers.Serializer):
+    prompt = serializers.CharField(
+        allow_blank=False, trim_whitespace=True, max_length=5000
+    )

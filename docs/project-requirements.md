@@ -15,6 +15,8 @@ Build a web app for authenticated users to import, browse, watch, and take notes
 - Playlist detail page with video list
 - Watch page with embedded YouTube player
 - Per-video markdown notes scoped per user
+- Per-video Notes/AI Analysis workspace with editable recommended Gemini prompts
+- One explicitly saved default AI prompt per user, reusable across videos and sessions
 - Notes live preview using `marked`
 - Markdown preview behavior should apply when the user presses Enter, similar to Obsidian-style editing; for example, starting a line with `#` turns that line into a heading after Enter
 - Notes persisted per video in the database
@@ -87,6 +89,7 @@ Build a web app for authenticated users to import, browse, watch, and take notes
 - Playlist ownership per user
 - Hidden/dissociated playlist state without deleting cached data
 - Soft-delete or removed state for videos that disappear from the source YouTube playlist
+- Server-side Gemini analysis for public videos owned through a linked playlist; Gemini credentials never reach the browser
 
 ## Main API Surface
 
@@ -104,6 +107,9 @@ Build a web app for authenticated users to import, browse, watch, and take notes
 | `POST` | `/api/youtube/disconnect/` | Disconnect the user's YouTube account |
 | `GET` | `/api/notes/<video_id>/` | Get the current user's note for a video |
 | `PUT` | `/api/notes/<video_id>/` | Save the current user's note for a video |
+| `GET` | `/api/ai/settings/` | Get the current user's saved default AI prompt |
+| `PUT` | `/api/ai/settings/` | Save or clear the current user's default AI prompt |
+| `POST` | `/api/videos/<video_id>/analyze/` | Analyze an owned public video with Gemini |
 
 ## Out of Scope
 
@@ -117,6 +123,6 @@ Build a web app for authenticated users to import, browse, watch, and take notes
 
 ## Future / Broader Plans
 
-- AI/Gemini-powered video analysis and chat
+- Multi-turn AI chat and analysis history
 - Search and filtering for large playlist libraries and long playlists
 - Manual playlist refresh/sync action

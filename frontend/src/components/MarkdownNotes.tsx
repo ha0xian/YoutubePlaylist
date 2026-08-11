@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import CodeMirrorMarkdownEditor from './CodeMirrorMarkdownEditor'
+import AIAnalysisPanel from './AIAnalysisPanel'
 import { useAuth } from '../auth/useAuth'
 import { getNote, saveNote } from '../api/notes'
 
 const EDITOR_MODE_KEY = 'youtube-notes:editor-mode'
 
 type MarkdownEditorMode = 'source' | 'live-preview'
+type NotesWorkspaceTab = 'notes' | 'ai'
 
 interface MarkdownNotesProps {
   videoId?: string
@@ -43,6 +45,7 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>(readEditorMode)
+  const [activeTab, setActiveTab] = useState<NotesWorkspaceTab>('notes')
   const lastSavedNotesRef = useRef('')
   const saveAbortRef = useRef<AbortController | null>(null)
   const unmountingRef = useRef(false)
@@ -172,14 +175,30 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
     onSeekToTime?.(Number(match[1]))
   }, [onSeekToTime])
 
+  const appendAnalysis = useCallback((generatedMarkdown: string) => {
+    setNotes((current) => {
+      const analysis = `## AI Analysis\n\n${generatedMarkdown.trim()}`
+      return current.trim() ? `${current.trimEnd()}\n\n---\n\n${analysis}` : analysis
+    })
+    setActiveTab('notes')
+  }, [])
+
+  const replaceWithAnalysis = useCallback((generatedMarkdown: string) => {
+    setNotes(generatedMarkdown.trim())
+    setActiveTab('notes')
+  }, [])
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#11161c] px-4 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#11161c] px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-white">Video Notes</h2>
-          <p className="text-[11px] text-slate-500">Autosaved markdown</p>
+          <div role="tablist" aria-label="Video workspace" className="notes-workspace-tabs">
+            <button type="button" role="tab" id="notes-tab" aria-selected={activeTab === 'notes'} aria-controls="notes-panel" className="notes-workspace-tab" onClick={() => setActiveTab('notes')}>Notes</button>
+            <button type="button" role="tab" id="ai-tab" aria-selected={activeTab === 'ai'} aria-controls="ai-panel" className="notes-workspace-tab" onClick={() => setActiveTab('ai')}>AI Analysis</button>
+          </div>
+          <p className="mt-1 text-[11px] text-slate-500">{activeTab === 'notes' ? 'Autosaved markdown' : 'Gemini video workspace'}</p>
         </div>
-        <div className="flex items-center gap-2">
+        {activeTab === 'notes' && <div className="flex items-center gap-2">
           {isSaving && (
             <span className="text-xs text-slate-500">Saving...</span>
           )}
@@ -216,10 +235,10 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
           >
             {showPreview ? 'Edit' : 'Preview'}
           </button>
-        </div>
+        </div>}
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div id="notes-panel" role="tabpanel" aria-labelledby="notes-tab" hidden={activeTab !== 'notes'} className="min-h-0 flex-1 overflow-hidden">
         {isLoading ? (
           <div className="flex h-full items-center justify-center p-4 text-sm text-slate-500">
             Loading notes...
@@ -251,6 +270,9 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
             />
           </>
         )}
+      </div>
+      <div id="ai-panel" role="tabpanel" aria-labelledby="ai-tab" hidden={activeTab !== 'ai'} className="min-h-0 flex-1 overflow-hidden">
+        <AIAnalysisPanel videoId={videoId} onAppendToNotes={appendAnalysis} onReplaceNotes={replaceWithAnalysis} />
       </div>
     </div>
   )

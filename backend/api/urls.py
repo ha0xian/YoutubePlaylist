@@ -19,6 +19,8 @@ urlpatterns = [
         name="personal-video-import",
     ),
     path("notes/<str:video_id>/", views.note_detail, name="note-detail"),
+    path("ai/settings/", views.ai_settings, name="ai-settings"),
+    path("videos/<str:video_id>/analyze/", views.analyze_video, name="video-analyze"),
     path("youtube/status/", views.youtube_status, name="youtube-status"),
     path("youtube/auth-url/", views.youtube_auth_url, name="youtube-auth-url"),
     path("youtube/callback/", views.youtube_callback, name="youtube-callback"),
