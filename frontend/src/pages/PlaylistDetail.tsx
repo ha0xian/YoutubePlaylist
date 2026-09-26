@@ -1,3 +1,4 @@
+import ResizableStudyWorkspace from '../components/ResizableStudyWorkspace'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { getPlaylist, refreshPlaylist, unlinkPlaylist } from '../api/playlists'
@@ -91,7 +92,7 @@ export default function PlaylistDetail() {
   if (isLoading) {
     return (
       <div className="bg-app flex min-h-screen items-center justify-center">
-        <div className="surface rounded-md px-5 py-4 text-sm text-slate-400">Loading playlist...</div>
+        <div className="surface rounded-lg px-5 py-4 text-sm text-muted">Loading playlist...</div>
       </div>
     )
   }
@@ -99,10 +100,10 @@ export default function PlaylistDetail() {
   if (error) {
     return (
       <div className="bg-app flex min-h-screen items-center justify-center p-6">
-        <div className="surface max-w-md rounded-md p-6 text-center">
-          <h2 className="text-xl font-semibold text-white">Something went wrong</h2>
-          <p className="mt-2 text-sm text-slate-400">{error}</p>
-          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-md px-4 py-2 text-sm font-semibold">
+        <div className="surface max-w-md rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-main">Something went wrong</h2>
+          <p className="mt-2 text-sm text-muted">{error}</p>
+          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-lg px-4 py-2 text-sm font-semibold">
             Back to library
           </button>
         </div>
@@ -113,9 +114,9 @@ export default function PlaylistDetail() {
   if (!playlist) {
     return (
       <div className="bg-app flex min-h-screen items-center justify-center p-6">
-        <div className="surface max-w-md rounded-md p-6 text-center">
-          <h2 className="text-xl font-semibold text-white">Playlist not found</h2>
-          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-md px-4 py-2 text-sm font-semibold">
+        <div className="surface max-w-md rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-main">Playlist not found</h2>
+          <button onClick={() => navigate('/')} className="btn-secondary mt-5 rounded-lg px-4 py-2 text-sm font-semibold">
             Back to library
           </button>
         </div>
@@ -124,21 +125,21 @@ export default function PlaylistDetail() {
   }
 
   return (
-    <div className="bg-app flex h-screen flex-col overflow-hidden text-slate-100">
-      <header className="shrink-0 border-b border-white/10 bg-[#0b0e12]/90 px-4 py-3 backdrop-blur-xl sm:px-5">
+    <div className="study-page bg-app flex flex-col text-main">
+      <header className="shrink-0 border-b border-line bg-panel px-4 py-3  sm:px-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
-              <button onClick={() => navigate('/')} className="btn-ghost rounded-md px-2 py-1">
+            <div className="mb-2 flex items-center gap-2 text-xs text-muted">
+              <button onClick={() => navigate('/')} className="btn-ghost rounded-lg px-2 py-1">
                 Back
               </button>
               <span>/</span>
               <span>Playlists</span>
               <span>/</span>
-              <span className="truncate text-slate-300">{playlist.title}</span>
+              <span className="truncate text-main">{playlist.title}</span>
             </div>
-            <h1 className="truncate text-lg font-semibold text-white">{playlist.title}</h1>
-            <p className="mt-1 truncate text-xs text-slate-500">
+            <h1 className="truncate text-lg font-semibold text-main">{playlist.title}</h1>
+            <p className="mt-1 truncate text-xs text-muted">
               {playlist.channelTitle} - {playlist.videoCount} videos
               {playlist.description ? ` - ${playlist.description}` : ''}
             </p>
@@ -150,14 +151,14 @@ export default function PlaylistDetail() {
                 disabled
                 title="To be implemented later"
                 placeholder="Search in this playlist..."
-                className="control w-full rounded-md px-3 py-2 text-sm disabled:opacity-60"
+                className="control w-full rounded-lg px-3 py-2 text-sm disabled:opacity-60"
               />
             </div>
             {playlist.source !== 'personal' && (
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
-                className="btn-secondary rounded-md px-3 py-2 text-sm font-semibold"
+                className="btn-secondary rounded-lg px-3 py-2 text-sm font-semibold"
                 title="Refresh playlist from YouTube"
               >
                 {isRefreshing ? 'Refreshing...' : 'Refresh'}
@@ -166,12 +167,12 @@ export default function PlaylistDetail() {
             <button
               onClick={handleUnlink}
               disabled={isUnlinking}
-              className="rounded-md border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+              className="rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm font-semibold text-danger transition-colors hover:bg-accent-soft disabled:opacity-50"
               title="Unlink playlist"
             >
               {isUnlinking ? 'Unlinking...' : 'Unlink'}
             </button>
-            <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-sm">
+            <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-lg px-3 py-2 text-sm">
               More
             </button>
             <UserMenu />
@@ -181,17 +182,19 @@ export default function PlaylistDetail() {
 
       {playlist.videos.length === 0 ? (
         <main className="flex flex-1 items-center justify-center p-6">
-          <div className="surface-subtle rounded-md p-8 text-sm text-slate-400">This playlist has no videos.</div>
+          <div className="surface-subtle rounded-lg p-8 text-sm text-muted">This playlist has no videos.</div>
         </main>
       ) : (
-        <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_390px]">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-md border border-white/10 bg-black shadow-2xl">
+        <ResizableStudyWorkspace
+          storageKey="yt-study:playlist-pane-ratio"
+          video={(
+            <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-black ">
             {effectiveVideo?.isRemoved && (
-              <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">
+              <div className="border-b border-accent bg-accent-soft px-4 py-2 text-center text-xs text-danger">
                 This video is unavailable or has been removed.
               </div>
             )}
-            <div className="min-h-[320px] flex-1">
+            <div className="min-w-0">
               <YouTubePlayer
                 key={effectiveVideoId ?? 'no-video'}
                 ref={playerRef}
@@ -199,15 +202,15 @@ export default function PlaylistDetail() {
               />
             </div>
           </section>
-
-          <aside className="grid min-h-0 grid-rows-[minmax(220px,0.95fr)_minmax(260px,1.05fr)] gap-4">
-            <section className="surface flex min-h-0 flex-col overflow-hidden rounded-md">
-              <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+          )}
+          queue={(
+            <section className="surface flex min-h-0 flex-col overflow-hidden rounded-lg">
+              <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-white">Queue</h2>
-                  <p className="text-xs text-slate-500">{playlist.videos.length} videos</p>
+                  <h2 className="text-sm font-semibold text-main">Queue</h2>
+                  <p className="text-xs text-muted">{playlist.videos.length} videos</p>
                 </div>
-                <button type="button" disabled title="To be implemented later" className="btn-ghost rounded-md px-2 py-1 text-xs">
+                <button type="button" disabled title="To be implemented later" className="btn-ghost rounded-lg px-2 py-1 text-xs">
                   Remove watched
                 </button>
               </div>
@@ -216,14 +219,16 @@ export default function PlaylistDetail() {
                   <VideoListItem
                     key={video.id}
                     video={video}
+                    variant="queue"
                     isSelected={video.youtubeVideoId === effectiveVideoId}
                     onSelect={(v) => setSelectedVideoId(v.youtubeVideoId)}
                   />
                 ))}
               </div>
             </section>
-
-            <section className="surface min-h-0 overflow-hidden rounded-md">
+          )}
+          notes={(
+            <section className="surface min-h-0 overflow-hidden rounded-lg">
               <MarkdownNotes
                 key={effectiveVideoId ?? 'no-video'}
                 videoId={effectiveVideoId ?? undefined}
@@ -231,8 +236,8 @@ export default function PlaylistDetail() {
                 onSeekToTime={(seconds) => playerRef.current?.seekTo(seconds)}
               />
             </section>
-          </aside>
-        </main>
+          )}
+        />
       )}
     </div>
   )

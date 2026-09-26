@@ -1,3 +1,4 @@
+import { apiFetch } from './request'
 import type { Playlist } from '../types/playlist'
 
 export interface YouTubeStatus {
@@ -87,7 +88,7 @@ function normalizeKeys<T>(obj: unknown): T {
 }
 
 export function getYouTubeStatus(token: string): Promise<YouTubeStatus> {
-  return fetch(`${API_BASE_URL}/api/youtube/status/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/status/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -97,7 +98,7 @@ export function getYouTubeStatus(token: string): Promise<YouTubeStatus> {
 export function getYouTubeAuthUrl(
   token: string,
 ): Promise<YouTubeAuthUrlResponse> {
-  return fetch(`${API_BASE_URL}/api/youtube/auth-url/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/auth-url/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -108,7 +109,7 @@ export function completeYouTubeOAuth(
   token: string,
   payload: YouTubeCallbackRequest,
 ): Promise<YouTubeCallbackResponse> {
-  return fetch(`${API_BASE_URL}/api/youtube/callback/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/callback/`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({
@@ -123,7 +124,7 @@ export function completeYouTubeOAuth(
 export function listYouTubePlaylists(
   token: string,
 ): Promise<YouTubeRemotePlaylist[]> {
-  return fetch(`${API_BASE_URL}/api/youtube/playlists/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/playlists/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -134,7 +135,7 @@ export function importYouTubePlaylists(
   token: string,
   playlistIds: string[],
 ): Promise<YouTubePlaylistImportResponse> {
-  return fetch(`${API_BASE_URL}/api/youtube/playlists/import/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/playlists/import/`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ playlist_ids: playlistIds }),
@@ -146,7 +147,7 @@ export function importYouTubePlaylists(
 export function disconnectYouTube(
   token: string,
 ): Promise<{ connected: false; removedPlaylistCount: number }> {
-  return fetch(`${API_BASE_URL}/api/youtube/disconnect/`, {
+  return apiFetch(`${API_BASE_URL}/api/youtube/disconnect/`, {
     method: 'POST',
     headers: authHeaders(token),
   })

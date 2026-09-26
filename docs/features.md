@@ -3,6 +3,11 @@
 Current feature inventory for the `master` branch, verified from the backend and
 frontend code surface rather than planning documents.
 
+## Deployment URLs
+
+- **Frontend:** https://youtube-playlist-theta.vercel.app
+- **Backend:** https://youtubeplaylist-999w.onrender.com
+
 ## Implemented On Master
 
 - **React + TypeScript + Vite frontend shell** -- routes are wired through React Router in `frontend/src/App.tsx`.

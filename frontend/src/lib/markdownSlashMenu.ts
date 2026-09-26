@@ -89,16 +89,26 @@ class SlashMenuView {
   private readonly options: MarkdownSlashMenuOptions
   private readonly dom: HTMLDivElement
   private state: SlashMenuState | null = null
+  private selectedIndex = 0
   private positionTimer: number | null = null
   private readonly handleKeyDown = (event: KeyboardEvent) => {
-    if (!this.state || (event.key !== 'Enter' && event.key !== 'Tab')) {
+    if (!this.state?.items.length || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
       return
     }
 
-    const firstItem = this.state.items[0]
-    if (firstItem && this.execute(firstItem)) {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       event.stopPropagation()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      this.selectedIndex = (this.selectedIndex + direction + this.state.items.length) % this.state.items.length
+      this.render()
+      return
+    }
+
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      event.preventDefault()
+      event.stopPropagation()
+      this.execute(this.state.items[this.selectedIndex])
     }
   }
 
@@ -135,7 +145,11 @@ class SlashMenuView {
   }
 
   private updateMenu() {
-    this.state = getSlashMenuState(this.view)
+    const nextState = this.view.hasFocus ? getSlashMenuState(this.view) : null
+    if (nextState?.from !== this.state?.from || nextState?.query !== this.state?.query) {
+      this.selectedIndex = 0
+    }
+    this.state = nextState
 
     if (!this.state) {
       this.dom.style.display = 'none'
@@ -169,12 +183,12 @@ class SlashMenuView {
       return
     }
 
-    for (const item of this.state.items) {
+    for (const [index, item] of this.state.items.entries()) {
       const row = document.createElement('button')
       row.className = 'cm-slash-menu-item'
       row.type = 'button'
       row.setAttribute('role', 'option')
-      row.setAttribute('aria-disabled', item.id === 'timestamp' ? 'false' : 'true')
+      row.setAttribute('aria-selected', String(index === this.selectedIndex))
       row.tabIndex = -1
       row.addEventListener('mousedown', (event) => {
         event.preventDefault()
@@ -198,7 +212,7 @@ class SlashMenuView {
 
       const status = document.createElement('span')
       status.className = 'cm-slash-menu-status'
-      status.textContent = item.id === 'timestamp' ? 'Enter' : 'Soon'
+      status.textContent = index === this.selectedIndex ? 'Tab / Enter' : ''
 
       copy.append(title, description)
       row.append(icon, copy, status)
@@ -207,13 +221,22 @@ class SlashMenuView {
   }
 
   private execute(item: SlashMenuItem) {
-    if (!this.state || item.id !== 'timestamp') {
+    if (!this.state) {
       return false
     }
 
-    const replacement = this.options.insertTimestamp?.()
+    const blockMarkers = { heading: '# ', todo: '- [ ] ', quote: '> ' }
+    let replacement = item.id === 'timestamp'
+      ? this.options.insertTimestamp?.()
+      : blockMarkers[item.id]
     if (!replacement) {
       return false
+    }
+
+    // Block commands need their own line when invoked after existing text.
+    const line = this.view.state.doc.lineAt(this.state.from)
+    if (item.id !== 'timestamp' && this.view.state.sliceDoc(line.from, this.state.from).trim()) {
+      replacement = `\n${replacement}`
     }
 
     this.view.dispatch({

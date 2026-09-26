@@ -1,3 +1,4 @@
+import { apiFetch } from './request'
 export interface AISettings {
   defaultPrompt: string
   createdAt: string | null
@@ -41,12 +42,12 @@ const headers = (token: string): HeadersInit => ({
 })
 
 export function getAISettings(token: string): Promise<AISettings> {
-  return fetch(`${API_BASE_URL}/api/ai/settings/`, { headers: headers(token) })
+  return apiFetch(`${API_BASE_URL}/api/ai/settings/`, { headers: headers(token) })
     .then(parseJson<AISettings>)
 }
 
 export function saveAISettings(token: string, defaultPrompt: string): Promise<AISettings> {
-  return fetch(`${API_BASE_URL}/api/ai/settings/`, {
+  return apiFetch(`${API_BASE_URL}/api/ai/settings/`, {
     method: 'PUT',
     headers: headers(token),
     body: JSON.stringify({ default_prompt: defaultPrompt }),
@@ -59,7 +60,7 @@ export function analyzeVideo(
   prompt: string,
   signal?: AbortSignal,
 ): Promise<VideoAnalysisResult> {
-  return fetch(`${API_BASE_URL}/api/videos/${encodeURIComponent(videoId)}/analyze/`, {
+  return apiFetch(`${API_BASE_URL}/api/videos/${encodeURIComponent(videoId)}/analyze/`, {
     method: 'POST',
     headers: headers(token),
     body: JSON.stringify({ prompt }),

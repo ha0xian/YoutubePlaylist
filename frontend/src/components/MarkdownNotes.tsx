@@ -189,26 +189,26 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
   }, [])
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#11161c] px-4 py-3">
+    <div className="notes-document flex flex-col h-full">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-panel px-4 py-3">
         <div>
           <div role="tablist" aria-label="Video workspace" className="notes-workspace-tabs">
             <button type="button" role="tab" id="notes-tab" aria-selected={activeTab === 'notes'} aria-controls="notes-panel" className="notes-workspace-tab" onClick={() => setActiveTab('notes')}>Notes</button>
             <button type="button" role="tab" id="ai-tab" aria-selected={activeTab === 'ai'} aria-controls="ai-panel" className="notes-workspace-tab" onClick={() => setActiveTab('ai')}>AI Analysis</button>
           </div>
-          <p className="mt-1 text-[11px] text-slate-500">{activeTab === 'notes' ? 'Autosaved markdown' : 'Gemini video workspace'}</p>
+          <p className="mt-1 text-[11px] text-muted">{activeTab === 'notes' ? 'Autosaved markdown' : 'Gemini video workspace'}</p>
         </div>
-        {activeTab === 'notes' && <div className="flex items-center gap-2">
+        {activeTab === 'notes' && <div className="flex flex-wrap items-center gap-2">
           {isSaving && (
-            <span className="text-xs text-slate-500">Saving...</span>
+            <span className="text-xs text-muted">Saving...</span>
           )}
           {!showPreview && (
-            <div className="flex overflow-hidden rounded-md border border-white/10 bg-black/20">
+            <div className="flex overflow-hidden rounded-lg border border-line bg-muted">
               <button
                 type="button"
                 onClick={() => setEditorMode('source')}
-                className={`border-r border-white/10 px-3 py-1.5 text-xs ${
-                  editorMode === 'source' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                className={`border-r border-line px-3 py-1.5 text-xs ${
+                  editorMode === 'source' ? 'bg-accent-soft text-accent' : 'text-muted'
                 }`}
               >
                 Source
@@ -217,7 +217,7 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
                 type="button"
                 onClick={() => setEditorMode('live-preview')}
                 className={`px-3 py-1.5 text-xs ${
-                  editorMode === 'live-preview' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                  editorMode === 'live-preview' ? 'bg-accent-soft text-accent' : 'text-muted'
                 }`}
               >
                 Live Preview
@@ -227,10 +227,10 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
           <button
             type="button"
             onClick={() => setShowPreview((p) => !p)}
-            className={`rounded-md border px-3.5 py-1.5 text-xs ${
+            className={`rounded-lg border px-3.5 py-1.5 text-xs ${
               showPreview
-                ? 'border-blue-400/30 bg-blue-500/20 text-blue-100'
-                : 'border-white/10 bg-white/[0.04] text-slate-300'
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-line bg-muted text-main'
             }`}
           >
             {showPreview ? 'Edit' : 'Preview'}
@@ -240,11 +240,11 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
 
       <div id="notes-panel" role="tabpanel" aria-labelledby="notes-tab" hidden={activeTab !== 'notes'} className="min-h-0 flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center p-4 text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center p-4 text-sm text-muted">
             Loading notes...
           </div>
         ) : loadError ? (
-          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-red-300">
+          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-danger">
             {loadError}
           </div>
         ) : showPreview ? (
@@ -257,7 +257,7 @@ export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }:
         ) : (
           <>
             {saveError && (
-              <div className="border-b border-red-400/20 bg-red-500/10 px-4 py-2 text-xs text-red-200">
+              <div className="border-b border-accent bg-accent-soft px-4 py-2 text-xs text-danger">
                 {saveError}
               </div>
             )}

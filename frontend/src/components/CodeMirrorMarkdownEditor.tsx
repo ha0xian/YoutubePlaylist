@@ -60,7 +60,7 @@ export default function CodeMirrorMarkdownEditor({
           height: '100%',
         },
         '.cm-scroller': {
-          fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+          fontFamily: 'inherit',
         },
       }),
       markdownSlashMenu({

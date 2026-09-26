@@ -24,6 +24,13 @@
   - Build: `npm run build`
   - Lint: `npm run lint`
 
+## Deployment
+
+- **Frontend:** https://youtube-playlist-theta.vercel.app
+- **Backend:** https://youtubeplaylist-999w.onrender.com
+- Frontend production builds should set `VITE_API_BASE_URL=https://youtubeplaylist-999w.onrender.com`.
+- Backend production env should include `DJANGO_ALLOWED_HOSTS=youtubeplaylist-999w.onrender.com`, `CORS_ALLOWED_ORIGINS=https://youtube-playlist-theta.vercel.app`, and `YOUTUBE_OAUTH_REDIRECT_URI=https://youtubeplaylist-999w.onrender.com/api/youtube/oauth/callback/`.
+
 ## Plans & State
 
 - Plans live at `.ai/plans/<branch-name>.md`

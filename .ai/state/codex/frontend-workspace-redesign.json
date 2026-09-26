@@ -1,0 +1,20 @@
+{
+  "feature": "codex/frontend-workspace-redesign",
+  "plan": ".ai/plans/codex/frontend-workspace-redesign.md",
+  "status": "in_progress",
+  "open_questions": [
+    "Final integration verification against an existing populated authenticated playlist and real note persistence remains; the local development account has no playlists."
+  ],
+  "blocked_reason": null,
+  "implementation": "complete",
+  "verification": {
+    "unit_tests": "16 frontend tests passed (Node native tests)",
+    "build": "passed; existing bundle-size warning",
+    "lint": "Only pre-existing PlaylistBrowser.tsx:142 react-hooks/set-state-in-effect error",
+    "browser": "Edge: 390/768/1024/1280/1440, light/dark, real iframe playback across drag and theme, keyboard/pointer cancel, editor identity/undo/slash timestamps, persistence/corrupt/denied preferences, OS theme changes, library controls, mocked import/picker/AI flows, auth redirects and field validation",
+    "limitations": "Populated playlist and note persistence exercised with isolated network fixtures, not existing account data. No paid AI calls.",
+    "backend_tests": "124 Django API tests passed using an isolated in-memory SQLite database",
+    "latest_browser": "Verified slash-menu arrow navigation and Tab/Enter insertion; right-side queue collapse/expand, video selection, mobile bounds and Escape focus restoration."
+  },
+  "release_notes": "User requested all local changes on main and approved restoring environment-based ALLOWED_HOSTS. Production mock isolation verified; existing lint error and real-account integration limitation remain documented."
+}

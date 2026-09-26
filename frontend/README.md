@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# YT Study frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, TypeScript and Vite frontend for the authenticated playlist and notes workspace.
 
-Currently, two official plugins are available:
+Run `npm install` and `npm run dev`. Local development automatically opens a demo account with mock playlists, videos, editable notes, and sample AI responses. No sign-in, Django server, or API keys are needed.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Mock changes (notes, AI preferences, imports, and unlinks) live in memory and reset on a page reload. Imports use sample metadata; AI responses are fixtures. YouTube account connections are unavailable in this mode. Thumbnails and embedded playback still use YouTube and require internet access.
 
-## React Compiler
+To test real authentication and backend data locally, put `VITE_USE_MOCK_DATA=false` in `frontend/.env.local`, restart Vite, and run Django on port 8000. Production builds always use real authentication and APIs, regardless of this flag. Mock mode does not read or overwrite your saved authentication token. Keep backend configuration and credentials outside frontend code.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Theme and workspace
 
-## Expanding the ESLint configuration
+The account controls and login/register pages include a System / Light / Dark selector. System follows the operating system. The choice is stored under `yt-study:theme`; denied storage falls back to an in-memory choice.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Playlist and standalone watch pages share a video/notes divider. Drag its grip, or focus it and use Left/Right (2 percentage points), Shift+Left/Right (10 points), Home/End (pane limits), or Enter/double-click (58% video). Ratios persist separately under `yt-study:playlist-pane-ratio` and `yt-study:watch-pane-ratio`. Temporary narrow layouts clamp the display without replacing the saved desktop preference.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Desktop playlists show a collapsible 280px video queue on the right. Collapsing it leaves a narrow Queue button and gives the space back to video and notes. Below 960px, video and notes stack and the queue opens as a floating panel on the right; it starts collapsed on small screens. The toggle supports keyboard activation, and Escape inside the queue collapses it and returns focus to the toggle. The divider also disappears whenever the measured space cannot fit 360px video + 320px notes + 12px separator. YouTube controls remain provider-controlled. The iframe and CodeMirror stay mounted across resizing and theme changes.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Verification
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Use Node 24 or newer for the native TypeScript unit tests; no additional test runner is required.
+
+```sh
+node --test tests/studyLayout.test.ts tests/theme.test.ts tests/mock.test.ts tests/mockMode.test.mjs
+npm run build
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The redesign was checked in headless Microsoft Edge at 390, 768, 1024, 1280 and 1440px in both themes. Checks covered iframe/editor identity, continuous real YouTube playback during drag/theme changes, keyboard resizing, pointer cancellation, stored/corrupt/denied preferences, OS theme changes, editor undo and slash timestamps, AI result/append/canceled replacement, library controls, import errors, remote picker closing, and logged-out redirects/form validation. New preferences were isolated from credential keys. No paid AI calls were made.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Five focused unit tests and the production build pass. Lint has one pre-existing `react-hooks/set-state-in-effect` error at `src/pages/PlaylistBrowser.tsx:142`; no new diagnostics were introduced. The existing bundle-size warning remains.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Populated playlists, note writes, OAuth picker and AI results were supplied at the browser network boundary for verification; fixtures are not part of production code. The local development account has no playlists. A final check with an existing populated authenticated playlist and real note persistence remains before marking the plan fully verified. Existing application storage access outside the new theme/layout preferences is unchanged.

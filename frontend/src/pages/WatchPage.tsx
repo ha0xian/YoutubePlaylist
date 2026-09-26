@@ -1,3 +1,4 @@
+import ResizableStudyWorkspace from '../components/ResizableStudyWorkspace'
 import { useParams, useLocation, Navigate, useNavigate } from 'react-router-dom'
 import { useRef } from 'react'
 import YouTubePlayer from '../components/YouTubePlayer'
@@ -17,38 +18,39 @@ export default function WatchPage() {
     (location.state as { isRemoved?: boolean } | null)?.isRemoved === true
 
   return (
-    <div className="bg-app flex h-screen flex-col overflow-hidden text-slate-100">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#0b0e12]/90 px-4 py-3 backdrop-blur-xl">
+    <div className="study-page bg-app flex flex-col text-main">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-panel px-4 py-3 ">
         <div className="flex min-w-0 items-center gap-3">
-          <button onClick={() => navigate('/')} className="btn-ghost rounded-md px-3 py-2 text-sm">
+          <button onClick={() => navigate('/')} className="btn-ghost rounded-lg px-3 py-2 text-sm">
             Back
           </button>
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold text-white">Focus Watch</h1>
-            <p className="truncate text-xs text-slate-500">Video notes workspace</p>
+            <h1 className="truncate text-sm font-semibold text-main">Focus Watch</h1>
+            <p className="truncate text-xs text-muted">Video notes workspace</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-xs">
+          <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-lg px-3 py-2 text-xs">
             Resources
           </button>
-          <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-xs">
+          <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-lg px-3 py-2 text-xs">
             Share
           </button>
           <UserMenu />
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-md border border-white/10 bg-black shadow-2xl">
+      <ResizableStudyWorkspace storageKey="yt-study:watch-pane-ratio" video={(
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-black ">
           {isRemoved && (
-            <div className="border-b border-amber-400/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-200">
+            <div className="border-b border-accent bg-accent-soft px-4 py-2 text-center text-xs text-danger">
               This video is unavailable or has been removed.
             </div>
           )}
           <YouTubePlayer key={videoId} ref={playerRef} initialVideoId={videoId} />
         </section>
-        <section className="surface min-h-0 overflow-hidden rounded-md">
+        )} notes={(
+        <section className="surface min-h-0 overflow-hidden rounded-lg">
           <MarkdownNotes
             key={videoId}
             videoId={videoId}
@@ -56,7 +58,7 @@ export default function WatchPage() {
             onSeekToTime={(seconds) => playerRef.current?.seekTo(seconds)}
           />
         </section>
-      </main>
+      )} />
     </div>
   )
 }

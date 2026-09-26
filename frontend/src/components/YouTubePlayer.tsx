@@ -166,29 +166,29 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(functi
   }, [])
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex shrink-0 gap-2 border-b border-white/10 bg-[#11161c] px-4 py-3">
+    <div className="player-shell flex flex-col">
+      <div className="flex shrink-0 gap-2 border-b border-line bg-panel px-4 py-3">
         <input
           type="text"
           placeholder="Paste YouTube URL or video ID..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLoad()}
-          className="control flex-1 rounded-md px-3 py-2 text-sm"
+          className="control min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
         />
         <button
           onClick={handleLoad}
-          className="btn-primary rounded-md px-5 py-2 text-sm font-semibold whitespace-nowrap"
+          className="btn-primary rounded-lg px-5 py-2 text-sm font-semibold whitespace-nowrap"
         >
           Load
         </button>
       </div>
 
-      <div className="flex-1 bg-black">
+      <div className="player-frame bg-black">
         {videoId ? (
           <div ref={playerHostRef} className="h-full w-full" />
         ) : (
-          <div className="flex h-full items-center justify-center text-base text-slate-600">
+          <div className="flex h-full items-center justify-center text-base text-muted">
             Enter a YouTube URL above to start watching
           </div>
         )}
