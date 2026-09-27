@@ -1,23 +1,40 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import CodeMirrorMarkdownEditor from './CodeMirrorMarkdownEditor'
+import AIAnalysisPanel from './AIAnalysisPanel'
 import { useAuth } from '../auth/useAuth'
 import { getNote, saveNote } from '../api/notes'
 
 const EDITOR_MODE_KEY = 'youtube-notes:editor-mode'
 
 type MarkdownEditorMode = 'source' | 'live-preview'
+type NotesWorkspaceTab = 'notes' | 'ai'
 
 interface MarkdownNotesProps {
   videoId?: string
+  getCurrentTime?: () => number | null
+  onSeekToTime?: (seconds: number) => void
+}
+
+function formatTimestamp(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds))
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
 function readEditorMode(): MarkdownEditorMode {
   return localStorage.getItem(EDITOR_MODE_KEY) === 'source' ? 'source' : 'live-preview'
 }
 
-export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
+export default function MarkdownNotes({ videoId, getCurrentTime, onSeekToTime }: MarkdownNotesProps) {
   const { token } = useAuth()
   const noteKey = token && videoId ? `${token}:${videoId}` : ''
 
@@ -28,6 +45,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [editorMode, setEditorMode] = useState<MarkdownEditorMode>(readEditorMode)
+  const [activeTab, setActiveTab] = useState<NotesWorkspaceTab>('notes')
   const lastSavedNotesRef = useRef('')
   const saveAbortRef = useRef<AbortController | null>(null)
   const unmountingRef = useRef(false)
@@ -134,24 +152,63 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
     return { __html: DOMPurify.sanitize(html) }
   }, [notes])
 
+  const insertTimestamp = useCallback(() => {
+    const seconds = Math.max(0, Math.floor(getCurrentTime?.() ?? 0))
+    return `[${formatTimestamp(seconds)}](#t=${seconds})`
+  }, [getCurrentTime])
+
+  const handlePreviewClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof Element)) {
+      return
+    }
+
+    const link = target.closest('a')
+    const href = link?.getAttribute('href') ?? ''
+    const match = /^#t=(\d+)$/.exec(href)
+
+    if (!match) {
+      return
+    }
+
+    event.preventDefault()
+    onSeekToTime?.(Number(match[1]))
+  }, [onSeekToTime])
+
+  const appendAnalysis = useCallback((generatedMarkdown: string) => {
+    setNotes((current) => {
+      const analysis = `## AI Analysis\n\n${generatedMarkdown.trim()}`
+      return current.trim() ? `${current.trimEnd()}\n\n---\n\n${analysis}` : analysis
+    })
+    setActiveTab('notes')
+  }, [])
+
+  const replaceWithAnalysis = useCallback((generatedMarkdown: string) => {
+    setNotes(generatedMarkdown.trim())
+    setActiveTab('notes')
+  }, [])
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[#11161c] px-4 py-3">
+    <div className="notes-document flex flex-col h-full">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-panel px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-white">Video Notes</h2>
-          <p className="text-[11px] text-slate-500">Autosaved markdown</p>
+          <div role="tablist" aria-label="Video workspace" className="notes-workspace-tabs">
+            <button type="button" role="tab" id="notes-tab" aria-selected={activeTab === 'notes'} aria-controls="notes-panel" className="notes-workspace-tab" onClick={() => setActiveTab('notes')}>Notes</button>
+            <button type="button" role="tab" id="ai-tab" aria-selected={activeTab === 'ai'} aria-controls="ai-panel" className="notes-workspace-tab" onClick={() => setActiveTab('ai')}>AI Analysis</button>
+          </div>
+          <p className="mt-1 text-[11px] text-muted">{activeTab === 'notes' ? 'Autosaved markdown' : 'Gemini video workspace'}</p>
         </div>
-        <div className="flex items-center gap-2">
+        {activeTab === 'notes' && <div className="flex flex-wrap items-center gap-2">
           {isSaving && (
-            <span className="text-xs text-slate-500">Saving...</span>
+            <span className="text-xs text-muted">Saving...</span>
           )}
           {!showPreview && (
-            <div className="flex overflow-hidden rounded-md border border-white/10 bg-black/20">
+            <div className="flex overflow-hidden rounded-lg border border-line bg-muted">
               <button
                 type="button"
                 onClick={() => setEditorMode('source')}
-                className={`border-r border-white/10 px-3 py-1.5 text-xs ${
-                  editorMode === 'source' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                className={`border-r border-line px-3 py-1.5 text-xs ${
+                  editorMode === 'source' ? 'bg-accent-soft text-accent' : 'text-muted'
                 }`}
               >
                 Source
@@ -160,7 +217,7 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
                 type="button"
                 onClick={() => setEditorMode('live-preview')}
                 className={`px-3 py-1.5 text-xs ${
-                  editorMode === 'live-preview' ? 'bg-blue-500/20 text-blue-100' : 'text-slate-400'
+                  editorMode === 'live-preview' ? 'bg-accent-soft text-accent' : 'text-muted'
                 }`}
               >
                 Live Preview
@@ -170,36 +227,37 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
           <button
             type="button"
             onClick={() => setShowPreview((p) => !p)}
-            className={`rounded-md border px-3.5 py-1.5 text-xs ${
+            className={`rounded-lg border px-3.5 py-1.5 text-xs ${
               showPreview
-                ? 'border-blue-400/30 bg-blue-500/20 text-blue-100'
-                : 'border-white/10 bg-white/[0.04] text-slate-300'
+                ? 'border-accent bg-accent-soft text-accent'
+                : 'border-line bg-muted text-main'
             }`}
           >
             {showPreview ? 'Edit' : 'Preview'}
           </button>
-        </div>
+        </div>}
       </div>
 
-      <div className="flex-1 overflow-hidden">
+      <div id="notes-panel" role="tabpanel" aria-labelledby="notes-tab" hidden={activeTab !== 'notes'} className="min-h-0 flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center p-4 text-sm text-slate-500">
+          <div className="flex h-full items-center justify-center p-4 text-sm text-muted">
             Loading notes...
           </div>
         ) : loadError ? (
-          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-red-300">
+          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-danger">
             {loadError}
           </div>
         ) : showPreview ? (
           <div
             className="markdown-preview scrollbar-thin h-full overflow-y-auto p-4"
             dangerouslySetInnerHTML={renderedHtml()}
+            onClick={handlePreviewClick}
             style={{ lineHeight: 1.6 }}
           />
         ) : (
           <>
             {saveError && (
-              <div className="border-b border-red-400/20 bg-red-500/10 px-4 py-2 text-xs text-red-200">
+              <div className="border-b border-accent bg-accent-soft px-4 py-2 text-xs text-danger">
                 {saveError}
               </div>
             )}
@@ -208,9 +266,13 @@ export default function MarkdownNotes({ videoId }: MarkdownNotesProps) {
               onChange={setNotes}
               livePreview={editorMode === 'live-preview'}
               placeholder="Write your notes here..."
+              insertTimestamp={insertTimestamp}
             />
           </>
         )}
+      </div>
+      <div id="ai-panel" role="tabpanel" aria-labelledby="ai-tab" hidden={activeTab !== 'ai'} className="min-h-0 flex-1 overflow-hidden">
+        <AIAnalysisPanel videoId={videoId} onAppendToNotes={appendAnalysis} onReplaceNotes={replaceWithAnalysis} />
       </div>
     </div>
   )

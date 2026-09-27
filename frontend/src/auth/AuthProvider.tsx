@@ -1,3 +1,4 @@
+import { MOCK_SESSION, USE_MOCK_DATA } from '../api/environment'
 import {
   useCallback,
   useEffect,
@@ -6,7 +7,6 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  devLogin as devLoginRequest,
   getCurrentUser,
   login as loginRequest,
   register as registerRequest,
@@ -18,42 +18,31 @@ import { AuthContext, TOKEN_STORAGE_KEY, type AuthContextValue } from './AuthCon
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem(TOKEN_STORAGE_KEY),
+    USE_MOCK_DATA ? MOCK_SESSION.token : localStorage.getItem(TOKEN_STORAGE_KEY),
   )
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<AuthUser | null>(USE_MOCK_DATA ? MOCK_SESSION.user : null)
+  const [isLoading, setIsLoading] = useState(!USE_MOCK_DATA)
 
   const clearSession = useCallback(() => {
+    if (USE_MOCK_DATA) return
     localStorage.removeItem(TOKEN_STORAGE_KEY)
     setToken(null)
     setUser(null)
   }, [])
 
   const persistSession = useCallback((nextToken: string, nextUser: AuthUser) => {
+    if (USE_MOCK_DATA) return
     localStorage.setItem(TOKEN_STORAGE_KEY, nextToken)
     setToken(nextToken)
     setUser(nextUser)
   }, [])
 
   useEffect(() => {
+    if (USE_MOCK_DATA) return
     let isMounted = true
 
     async function loadUser() {
       if (!token) {
-        if (import.meta.env.DEV) {
-          try {
-            const response = await devLoginRequest()
-            if (isMounted) {
-              persistSession(response.token, response.user)
-            }
-          } catch {
-            if (isMounted) {
-              setIsLoading(false)
-            }
-          }
-          return
-        }
-
         setIsLoading(false)
         return
       }
@@ -79,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false
     }
-  }, [clearSession, persistSession, token])
+  }, [clearSession, token])
 
   const login = useCallback(
     async (credentials: AuthCredentials) => {

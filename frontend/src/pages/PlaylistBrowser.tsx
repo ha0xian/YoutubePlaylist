@@ -363,12 +363,12 @@ export default function PlaylistBrowser() {
   const urlCount = playlists.filter((playlist) => playlist.source === 'url').length
 
   const sidebarFooter = (
-    <div className="rounded-md border border-white/10 bg-white/[0.035] p-3">
+    <div className="rounded-lg border border-line bg-muted p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-300">YouTube Connection</span>
+        <span className="text-xs font-semibold text-main">YouTube Connection</span>
         <span className={`h-2 w-2 rounded-full ${isOauthConnected ? 'bg-emerald-400' : 'bg-slate-600'}`} />
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         {isOauthConnected ? `Connected as ${oauthStatus!.channelTitle ?? 'YouTube'}` : 'Not connected'}
       </p>
       {isOauthConnected && (
@@ -376,7 +376,7 @@ export default function PlaylistBrowser() {
           type="button"
           onClick={handleDisconnect}
           disabled={isDisconnecting}
-          className="mt-3 w-full rounded-md border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/15 disabled:opacity-50"
+          className="mt-3 w-full rounded-lg border border-accent bg-accent-soft px-3 py-2 text-xs font-semibold text-danger transition-colors hover:bg-accent-soft disabled:opacity-50"
         >
           {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
         </button>
@@ -387,23 +387,23 @@ export default function PlaylistBrowser() {
   return (
     <AppShell active="library" sidebarFooter={sidebarFooter}>
       <div className="min-h-screen">
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0b0e12]/88 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <header className="library-header sticky top-0 z-20 border-b border-line bg-panel px-4 py-3  sm:px-6">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
+              <div className="flex items-center gap-2 text-xs text-muted">
                 <span>Library</span>
                 <span>/</span>
-                <span className="text-slate-300">Playlists</span>
+                <span className="text-main">Playlists</span>
               </div>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white">Playlists</h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-main">Playlists</h1>
+              <p className="mt-1 text-sm text-muted">
                 Import, sync, and organize YouTube study material in one workspace.
               </p>
             </div>
 
             <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center xl:max-w-3xl">
               <div className="relative flex-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-600">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="7" />
                     <path d="m20 20-3-3" />
@@ -413,7 +413,7 @@ export default function PlaylistBrowser() {
                   disabled
                   title="To be implemented later"
                   placeholder="Search playlists, notes, videos..."
-                  className="control w-full rounded-md py-2 pl-9 pr-3 text-sm disabled:opacity-60"
+                  className="control w-full rounded-lg py-2 pl-9 pr-3 text-sm disabled:opacity-60"
                 />
               </div>
               {isOauthConnected ? (
@@ -421,7 +421,7 @@ export default function PlaylistBrowser() {
                   type="button"
                   onClick={handleOpenRemotePicker}
                   disabled={isDisconnecting}
-                  className="rounded-md border border-blue-400/25 bg-blue-500/10 px-3 py-2 text-sm font-semibold text-blue-200 transition-colors hover:bg-blue-500/15 disabled:opacity-50"
+                  className="rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
                 >
                   Connected: {oauthStatus!.channelTitle ?? 'YouTube'}
                 </button>
@@ -430,7 +430,7 @@ export default function PlaylistBrowser() {
                   type="button"
                   onClick={handleConnect}
                   disabled={isConnecting || isCompleting}
-                  className="btn-primary rounded-md px-4 py-2 text-sm font-semibold"
+                  className="btn-primary rounded-lg px-4 py-2 text-sm font-semibold"
                 >
                   {isConnecting ? 'Connecting...' : isCompleting ? 'Completing...' : 'Connect YouTube'}
                 </button>
@@ -440,36 +440,36 @@ export default function PlaylistBrowser() {
           </div>
 
           {oauthError && (
-            <div className="mt-3 rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            <div className="mt-3 rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm text-danger">
               {oauthError}
             </div>
           )}
         </header>
 
         <main className="space-y-6 p-4 sm:p-6">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="library-totals grid grid-cols-2 gap-3 xl:grid-cols-4">
             {[
               ['Total Playlists', playlists.length],
               ['Total Videos', totalVideos],
               ['Imported from YouTube', oauthCount],
               ['URL / Personal', `${urlCount} / ${personalCount}`],
             ].map(([label, value]) => (
-              <div key={label} className="surface-subtle rounded-md p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-                <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+              <div key={label} className="surface-subtle rounded-lg p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
+                <p className="mt-2 text-2xl font-semibold text-main">{value}</p>
               </div>
             ))}
           </section>
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <form onSubmit={handleImport} className="surface rounded-md p-4">
+            <form onSubmit={handleImport} className="surface rounded-lg p-4">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-red-500/10 text-xs font-bold text-red-200">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft text-xs font-bold text-danger">
                   URL
                 </span>
                 <div>
-                  <h2 className="text-sm font-semibold text-white">Import Playlist from URL</h2>
-                  <p className="text-xs text-slate-500">Paste a public YouTube playlist URL.</p>
+                  <h2 className="text-sm font-semibold text-main">Import Playlist from URL</h2>
+                  <p className="text-xs text-muted">Paste a public YouTube playlist URL.</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -484,32 +484,32 @@ export default function PlaylistBrowser() {
                     }
                   }}
                   placeholder="https://www.youtube.com/playlist?list=PL..."
-                  className="control min-w-0 flex-1 rounded-md px-3 py-2 text-sm"
+                  className="control min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
                 />
                 <button
                   type="submit"
                   disabled={isImporting || !importUrl.trim()}
-                  className="btn-primary shrink-0 rounded-md px-5 py-2 text-sm font-semibold"
+                  className="btn-primary shrink-0 rounded-lg px-5 py-2 text-sm font-semibold"
                 >
                   {isImporting ? 'Importing...' : 'Import Playlist'}
                 </button>
               </div>
               {importError && (
-                <div className="mt-3 rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-                  {importUrlValue && <span className="mb-1 block break-all text-slate-400">URL: {importUrlValue}</span>}
+                <div className="mt-3 rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm text-danger">
+                  {importUrlValue && <span className="mb-1 block break-all text-muted">URL: {importUrlValue}</span>}
                   {importError}
                 </div>
               )}
             </form>
 
-            <form onSubmit={handlePersonalVideoImport} className="surface rounded-md p-4">
+            <form onSubmit={handlePersonalVideoImport} className="surface rounded-lg p-4">
               <div className="mb-4 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-amber-500/10 text-xs font-bold text-amber-200">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-soft text-xs font-bold text-danger">
                   MY
                 </span>
                 <div>
-                  <h2 className="text-sm font-semibold text-white">Add Single Video to My Playlist</h2>
-                  <p className="text-xs text-slate-500">Paste a watch URL or video ID.</p>
+                  <h2 className="text-sm font-semibold text-main">Add Single Video to My Playlist</h2>
+                  <p className="text-xs text-muted">Paste a watch URL or video ID.</p>
                 </div>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -524,20 +524,20 @@ export default function PlaylistBrowser() {
                     }
                   }}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="control min-w-0 flex-1 rounded-md px-3 py-2 text-sm focus:!border-amber-400/70 focus:!shadow-[0_0_0_3px_rgba(245,158,11,0.16)]"
+                  className="control min-w-0 flex-1 rounded-lg px-3 py-2 text-sm"
                 />
                 <button
                   type="submit"
                   disabled={isImportingPersonalVideo || !personalVideoUrl.trim()}
-                  className="shrink-0 rounded-md border border-amber-400/25 bg-amber-500/80 px-5 py-2 text-sm font-semibold text-[#120b02] transition-colors hover:bg-amber-400 disabled:opacity-50"
+                  className="btn-primary shrink-0 rounded-lg px-5 py-2 text-sm font-semibold"
                 >
                   {isImportingPersonalVideo ? 'Adding...' : 'Add to My Playlist'}
                 </button>
               </div>
               {personalVideoError && (
-                <div className="mt-3 rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                <div className="mt-3 rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm text-danger">
                   {personalVideoUrlValue && (
-                    <span className="mb-1 block break-all text-slate-400">URL: {personalVideoUrlValue}</span>
+                    <span className="mb-1 block break-all text-muted">URL: {personalVideoUrlValue}</span>
                   )}
                   {personalVideoError}
                 </div>
@@ -546,11 +546,11 @@ export default function PlaylistBrowser() {
           </section>
 
           {isOauthConnected && isRemotePickerOpen && (
-            <section className="surface rounded-md p-4">
+            <section className="surface rounded-lg p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-white">Import from YouTube</h2>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <h2 className="text-sm font-semibold text-main">Import from YouTube</h2>
+                  <p className="mt-1 text-xs text-muted">
                     Select playlists from your connected account, then save.
                   </p>
                 </div>
@@ -559,7 +559,7 @@ export default function PlaylistBrowser() {
                     type="button"
                     onClick={loadRemotePlaylists}
                     disabled={isLoadingRemote || isImportingRemote}
-                    className="btn-secondary rounded-md px-3 py-2 text-xs font-semibold"
+                    className="btn-secondary rounded-lg px-3 py-2 text-xs font-semibold"
                   >
                     {isLoadingRemote ? 'Loading...' : 'Refresh'}
                   </button>
@@ -567,7 +567,7 @@ export default function PlaylistBrowser() {
                     type="button"
                     onClick={handleRemoteImport}
                     disabled={isImportingRemote}
-                    className="rounded-md border border-blue-400/25 bg-blue-500/15 px-4 py-2 text-sm font-semibold text-blue-100 transition-colors hover:bg-blue-500/20 disabled:opacity-50"
+                    className="rounded-lg border border-accent bg-accent-soft px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent-soft disabled:opacity-50"
                   >
                     {isImportingRemote ? 'Saving...' : `Save (${selectedRemoteCount})`}
                   </button>
@@ -575,7 +575,7 @@ export default function PlaylistBrowser() {
                     type="button"
                     onClick={handleCloseRemotePicker}
                     disabled={isImportingRemote}
-                    className="btn-ghost rounded-md px-3 py-2 text-xs font-semibold"
+                    className="btn-ghost rounded-lg px-3 py-2 text-xs font-semibold"
                   >
                     Close
                   </button>
@@ -583,22 +583,22 @@ export default function PlaylistBrowser() {
               </div>
 
               {remoteError && (
-                <div className="mt-3 rounded-md border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                <div className="mt-3 rounded-lg border border-accent bg-accent-soft px-3 py-2 text-sm text-danger">
                   {remoteError}
                 </div>
               )}
 
               {isLoadingRemote && remotePlaylists.length === 0 && (
-                <p className="mt-4 text-sm text-slate-500">Loading YouTube playlists...</p>
+                <p className="mt-4 text-sm text-muted">Loading YouTube playlists...</p>
               )}
 
               {!isLoadingRemote && remotePlaylists.length === 0 && !remoteError && (
-                <p className="mt-4 text-sm text-slate-500">No YouTube playlists are available for this account.</p>
+                <p className="mt-4 text-sm text-muted">No YouTube playlists are available for this account.</p>
               )}
 
               {remotePlaylists.length > 0 && (
-                <div className="mt-4 overflow-hidden rounded-md border border-white/10">
-                  <div className="grid grid-cols-[32px_1fr_80px_92px] bg-white/[0.035] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className="mt-4 overflow-hidden rounded-lg border border-line">
+                  <div className="grid grid-cols-[32px_1fr_80px_92px] bg-muted px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted">
                     <span />
                     <span>Playlist</span>
                     <span>Videos</span>
@@ -611,8 +611,8 @@ export default function PlaylistBrowser() {
                       return (
                         <label
                           key={playlist.youtubePlaylistId}
-                          className={`grid grid-cols-[32px_1fr_80px_92px] items-center gap-3 border-t border-white/10 px-3 py-2 transition-colors ${
-                            isSelected ? 'bg-blue-500/10' : 'hover:bg-white/[0.035]'
+                          className={`grid grid-cols-[32px_1fr_80px_92px] items-center gap-3 border-t border-line px-3 py-2 transition-colors ${
+                            isSelected ? 'bg-accent-soft' : 'hover:bg-muted'
                           }`}
                         >
                           <input
@@ -629,14 +629,14 @@ export default function PlaylistBrowser() {
                               className="h-10 w-16 shrink-0 rounded object-cover"
                             />
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-medium text-white">{playlist.title}</span>
-                              <span className="block truncate text-xs text-slate-500">
+                              <span className="block truncate text-sm font-medium text-main">{playlist.title}</span>
+                              <span className="block truncate text-xs text-muted">
                                 {playlist.channelTitle || 'YouTube'}
                               </span>
                             </span>
                           </span>
-                          <span className="text-sm text-slate-300">{playlist.videoCount}</span>
-                          <span className="text-xs font-semibold text-slate-300">
+                          <span className="text-sm text-main">{playlist.videoCount}</span>
+                          <span className="text-xs font-semibold text-main">
                             {playlist.isImported ? 'Synced' : 'Import'}
                           </span>
                         </label>
@@ -651,30 +651,30 @@ export default function PlaylistBrowser() {
           <section>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-white">Your Playlists</h2>
-                <p className="text-sm text-slate-500">
+                <h2 className="text-base font-semibold text-main">Your Playlists</h2>
+                <p className="text-sm text-muted">
                   {playlists.length === 0
                     ? 'Nothing imported yet.'
                     : `Showing ${playlists.length} playlist${playlists.length === 1 ? '' : 's'}.`}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-xs">
+                <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-lg px-3 py-2 text-xs">
                   Sort by: Last updated
                 </button>
-                <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-md px-3 py-2 text-xs">
+                <button type="button" disabled title="To be implemented later" className="btn-secondary rounded-lg px-3 py-2 text-xs">
                   Grid
                 </button>
               </div>
             </div>
 
-            {isLoading && <div className="surface-subtle rounded-md p-6 text-sm text-slate-500">Loading playlists...</div>}
+            {isLoading && <div className="surface-subtle rounded-lg p-6 text-sm text-muted">Loading playlists...</div>}
 
-            {error && <div className="rounded-md border border-red-400/20 bg-red-500/10 p-6 text-sm text-red-200">{error}</div>}
+            {error && <div className="rounded-lg border border-accent bg-accent-soft p-6 text-sm text-danger">{error}</div>}
 
             {!isLoading && !error && playlists.length === 0 && (
-              <div className="surface-subtle rounded-md p-10 text-center">
-                <p className="text-sm text-slate-400">
+              <div className="surface-subtle rounded-lg p-10 text-center">
+                <p className="text-sm text-muted">
                   Paste a YouTube playlist URL or add a video to My Playlist to get started.
                 </p>
               </div>

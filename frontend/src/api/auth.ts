@@ -1,3 +1,4 @@
+import { apiFetch } from './request'
 export interface AuthUser {
   id: number
   username: string
@@ -51,7 +52,7 @@ async function authFetch<T>(
     headers.set('Authorization', `Token ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
   })

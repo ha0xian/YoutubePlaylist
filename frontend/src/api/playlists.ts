@@ -1,3 +1,4 @@
+import { apiFetch } from './request'
 import type {
   Playlist,
   PlaylistDetail,
@@ -50,7 +51,7 @@ function normalizeKeys<T>(obj: unknown): T {
 }
 
 export function listPlaylists(token: string): Promise<Playlist[]> {
-  return fetch(`${API_BASE_URL}/api/playlists/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -61,7 +62,7 @@ export function getPlaylist(
   token: string,
   id: string | number,
 ): Promise<PlaylistDetail> {
-  return fetch(`${API_BASE_URL}/api/playlists/${id}/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/${id}/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -72,7 +73,7 @@ export function refreshPlaylist(
   token: string,
   id: string | number,
 ): Promise<PlaylistDetail> {
-  return fetch(`${API_BASE_URL}/api/playlists/${id}/refresh/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/${id}/refresh/`, {
     method: 'POST',
     headers: authHeaders(token),
   })
@@ -84,7 +85,7 @@ export function importPlaylist(
   token: string,
   url: string,
 ): Promise<PlaylistDetail> {
-  return fetch(`${API_BASE_URL}/api/playlists/import/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/import/`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ url }),
@@ -97,7 +98,7 @@ export function importPersonalVideo(
   token: string,
   url: string,
 ): Promise<PlaylistDetail> {
-  return fetch(`${API_BASE_URL}/api/playlists/personal/videos/import/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/personal/videos/import/`, {
     method: 'POST',
     headers: authHeaders(token),
     body: JSON.stringify({ url }),
@@ -110,7 +111,7 @@ export function unlinkPlaylist(
   token: string,
   id: string | number,
 ): Promise<PlaylistUnlinkResponse> {
-  return fetch(`${API_BASE_URL}/api/playlists/${id}/unlink/`, {
+  return apiFetch(`${API_BASE_URL}/api/playlists/${id}/unlink/`, {
     method: 'POST',
     headers: authHeaders(token),
   })

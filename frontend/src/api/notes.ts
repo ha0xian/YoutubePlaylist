@@ -1,3 +1,4 @@
+import { apiFetch } from './request'
 export interface Note {
   id: number | null
   youtubeVideoId: string
@@ -52,7 +53,7 @@ function normalizeKeys<T>(obj: unknown): T {
 }
 
 export function getNote(token: string, videoId: string): Promise<Note> {
-  return fetch(`${API_BASE_URL}/api/notes/${encodeURIComponent(videoId)}/`, {
+  return apiFetch(`${API_BASE_URL}/api/notes/${encodeURIComponent(videoId)}/`, {
     headers: authHeaders(token),
   })
     .then(parseJson)
@@ -65,7 +66,7 @@ export function saveNote(
   content: string,
   signal?: AbortSignal,
 ): Promise<Note> {
-  return fetch(`${API_BASE_URL}/api/notes/${encodeURIComponent(videoId)}/`, {
+  return apiFetch(`${API_BASE_URL}/api/notes/${encodeURIComponent(videoId)}/`, {
     method: 'PUT',
     headers: authHeaders(token),
     body: JSON.stringify({ content }),

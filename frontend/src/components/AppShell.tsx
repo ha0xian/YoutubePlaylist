@@ -117,16 +117,16 @@ function Icon({ name }: { name: string }) {
 
 export default function AppShell({ children, active = 'library', sidebarFooter }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-app text-slate-100">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-[278px] shrink-0 border-r border-white/10 bg-[#101419]/95 p-4 lg:flex lg:flex-col">
+    <div className="min-h-screen bg-app text-main">
+      <div className="app-shell">
+        <aside className="app-sidebar border-r border-line p-4">
           <Link to="/" className="mb-6 flex items-center gap-3 px-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#e11d24] shadow-[0_0_28px_rgba(225,29,36,0.25)]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
               <span className="ml-0.5 h-0 w-0 border-y-[6px] border-l-[9px] border-y-transparent border-l-white" />
             </span>
             <span>
-              <span className="block text-sm font-semibold text-white">YT Study</span>
-              <span className="block text-[11px] text-slate-500">Playlist workspace</span>
+              <span className="block text-sm font-semibold text-main">YT Study</span>
+              <span className="block text-[11px] text-muted">Playlist workspace</span>
             </span>
           </Link>
 
@@ -137,12 +137,12 @@ export default function AppShell({ children, active = 'library', sidebarFooter }
                 <Link
                   key={item.label}
                   to={item.href}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                     isActive
-                      ? 'bg-white/[0.07] text-white shadow-[inset_3px_0_0_#e11d24]'
+                      ? 'bg-muted text-main shadow-[inset_3px_0_0_#e11d24]'
                       : item.label === 'My Playlist'
-                        ? 'text-amber-300 hover:bg-white/[0.05]'
-                        : 'text-slate-400 hover:bg-white/[0.05] hover:text-white'
+                        ? 'text-danger hover:bg-muted'
+                        : 'text-muted hover:bg-muted hover:text-main'
                   }`}
                 >
                   <Icon name={item.icon} />
@@ -152,7 +152,7 @@ export default function AppShell({ children, active = 'library', sidebarFooter }
             })}
           </nav>
 
-          <div className="my-5 h-px bg-white/10" />
+          <div className="my-5 h-px bg-muted" />
 
           <nav className="space-y-1">
             {laterItems.map((item, index) => (
@@ -161,7 +161,7 @@ export default function AppShell({ children, active = 'library', sidebarFooter }
                 type="button"
                 disabled
                 title="To be implemented later"
-                className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-slate-500 ${
+                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted ${
                   index >= 4 ? 'mt-1' : ''
                 }`}
               >
@@ -177,7 +177,7 @@ export default function AppShell({ children, active = 'library', sidebarFooter }
               type="button"
               disabled
               title="To be implemented later"
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-slate-400"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-muted px-3 py-2 text-sm text-muted"
             >
               Collapse
             </button>
