@@ -19,6 +19,7 @@ urlpatterns = [
         views.personal_video_import,
         name="personal-video-import",
     ),
+    path("notes/", views.note_list, name="note-list"),
     path("notes/<str:video_id>/", views.note_detail, name="note-detail"),
     path("ai/settings/", views.ai_settings, name="ai-settings"),
     path("videos/<str:video_id>/analyze/", views.analyze_video, name="video-analyze"),

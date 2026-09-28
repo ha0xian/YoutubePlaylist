@@ -7,6 +7,13 @@ export interface Note {
   updatedAt: string | null
 }
 
+export interface NoteListItem extends Note {
+  videoTitle: string | null
+  videoChannelTitle: string | null
+  videoThumbnailUrl: string | null
+  videoIsRemoved: boolean
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -58,6 +65,14 @@ export function getNote(token: string, videoId: string): Promise<Note> {
   })
     .then(parseJson)
     .then((data) => normalizeKeys<Note>(data))
+}
+
+export function listNotes(token: string): Promise<NoteListItem[]> {
+  return apiFetch(`${API_BASE_URL}/api/notes/`, {
+    headers: authHeaders(token),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<NoteListItem[]>(data))
 }
 
 export function saveNote(

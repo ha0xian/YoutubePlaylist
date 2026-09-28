@@ -1,5 +1,5 @@
 import type { PlaylistDetail, Video } from '../types/playlist'
-import type { Note } from './notes'
+import type { Note, NoteListItem } from './notes'
 import type { AISettings } from './ai'
 
 const timestamp = '2026-01-01T12:00:00Z'
@@ -81,6 +81,21 @@ export async function mockFetch(url: string, options: RequestInit = {}): Promise
       personal.videoCount = personal.videos.length
     }
     return json(personal)
+  }
+  if (path === '/api/notes/' && method === 'GET') {
+    const allVideos = playlists.flatMap((item) => item.videos)
+    const items: NoteListItem[] = Array.from(notes.values(), (note) => {
+      const matchingVideo = allVideos.find((item) => item.youtubeVideoId === note.youtubeVideoId)
+      return {
+        ...note,
+        videoTitle: matchingVideo?.title ?? null,
+        videoChannelTitle: matchingVideo?.channelTitle ?? null,
+        videoThumbnailUrl: matchingVideo?.thumbnailUrl ?? null,
+        videoIsRemoved: matchingVideo?.isRemoved ?? false,
+      }
+    })
+    items.sort((left, right) => (right.updatedAt ?? '').localeCompare(left.updatedAt ?? ''))
+    return json(items)
   }
   const noteMatch = path.match(/^\/api\/notes\/([^/]+)\/$/)
   if (noteMatch && (method === 'GET' || method === 'PUT')) {

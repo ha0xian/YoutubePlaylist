@@ -21,6 +21,9 @@ test('mock notes and AI settings round-trip, and aborted writes do not save', as
   const content = '# My note'
   await mockFetch(path, { method: 'PUT', body: JSON.stringify({ content }) })
   assert.equal((await (await mockFetch(path)).json()).content, content)
+  const noteList = await (await mockFetch('/api/notes/')).json()
+  assert.ok(noteList.some((note: { youtubeVideoId: string }) => note.youtubeVideoId === 'test-video'))
+  assert.equal(noteList.find((note: { youtubeVideoId: string }) => note.youtubeVideoId === 'W6NZfCO5SIk').videoTitle, 'JavaScript fundamentals')
   await assert.rejects(mockFetch(path, { method: 'PUT', body: JSON.stringify({ content: 'Canceled' }), signal: AbortSignal.abort() }), { name: 'AbortError' })
   assert.equal((await (await mockFetch(path)).json()).content, content)
   await mockFetch('/api/ai/settings/', { method: 'PUT', body: JSON.stringify({ default_prompt: 'Practice questions' }) })

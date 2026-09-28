@@ -14,6 +14,7 @@ from .gemini import (
 from .models import Note, Playlist, UserAISettings, Video
 from .serializers import (
     LoginSerializer,
+    NoteListSerializer,
     NoteSerializer,
     PersonalVideoImportSerializer,
     UserAISettingsSerializer,
@@ -331,6 +332,29 @@ def note_detail(request, video_id):
         defaults={"content": serializer.validated_data["content"]},
     )
     return Response(NoteSerializer(note).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def note_list(request):
+    """List the current user's notes with available video metadata."""
+    notes = Note.objects.filter(user=request.user)
+    video_ids = list(notes.values_list("youtube_video_id", flat=True))
+    videos = Video.objects.filter(
+        playlist__user=request.user,
+        youtube_video_id__in=video_ids,
+    ).order_by("playlist__is_unlinked", "playlist_id", "position")
+
+    videos_by_id = {}
+    for video in videos:
+        videos_by_id.setdefault(video.youtube_video_id, video)
+
+    serializer = NoteListSerializer(
+        notes,
+        many=True,
+        context={"videos_by_id": videos_by_id},
+    )
+    return Response(serializer.data)
 
 
 @api_view(["GET", "PUT"])

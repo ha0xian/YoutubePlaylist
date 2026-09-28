@@ -1719,6 +1719,75 @@ class NoteDetailTests(APITestCase):
         self.assertEqual(Note.objects.filter(youtube_video_id=self.video_id).count(), 2)
 
 
+class NoteListTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="note-list-user", password="AStrongP4ssword!"
+        )
+        self.other_user = User.objects.create_user(
+            username="other-note-user", password="AStrongP4ssword!"
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.url = "/api/notes/"
+
+    def _auth_header(self):
+        return {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
+
+    def test_note_list_requires_auth(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_note_list_is_user_scoped_and_includes_video_metadata(self):
+        from .models import Note, Playlist
+
+        playlist = Playlist.objects.create(
+            user=self.user,
+            youtube_playlist_id="PL-note-list",
+            title="Study playlist",
+            channel_title="Study channel",
+        )
+        Video.objects.create(
+            playlist=playlist,
+            youtube_video_id="note-video-1",
+            position=0,
+            title="A useful lesson",
+            channel_title="Teacher",
+            thumbnail_url="https://example.com/lesson.jpg",
+            duration="PT5M",
+        )
+        older_note = Note.objects.create(
+            user=self.user,
+            youtube_video_id="note-video-1",
+            content="# Lesson notes",
+        )
+        newest_note = Note.objects.create(
+            user=self.user,
+            youtube_video_id="note-video-2",
+            content="Notes without imported video metadata",
+        )
+        Note.objects.create(
+            user=self.other_user,
+            youtube_video_id="private-video",
+            content="Must not be returned",
+        )
+        Note.objects.filter(pk=older_note.pk).update(updated_at="2026-01-01T00:00:00Z")
+        Note.objects.filter(pk=newest_note.pk).update(updated_at="2026-01-02T00:00:00Z")
+
+        response = self.client.get(self.url, **self._auth_header())
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data[0]["youtube_video_id"], "note-video-2")
+        self.assertIsNone(response.data[0]["video_title"])
+        self.assertEqual(response.data[1]["video_title"], "A useful lesson")
+        self.assertEqual(response.data[1]["video_channel_title"], "Teacher")
+        self.assertEqual(
+            response.data[1]["video_thumbnail_url"],
+            "https://example.com/lesson.jpg",
+        )
+
+
 # ── YouTube OAuth tests ────────────────────────────────────────────────────
 
 # A valid Fernet key for tests (pre-generated, not used in production)

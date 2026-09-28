@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 interface AppShellProps {
   children: ReactNode
-  active?: 'library' | 'playlist' | 'watch'
+  active?: 'library' | 'playlist' | 'watch' | 'notes'
   sidebarFooter?: ReactNode
 }
 
@@ -13,10 +13,17 @@ const navItems = [
   { label: 'My Playlist', icon: 'star', activeKey: 'library', href: '/' },
 ]
 
-const laterItems = [
+interface LaterItem {
+  label: string
+  icon: string
+  href?: string
+  activeKey?: AppShellProps['active']
+}
+
+const laterItems: LaterItem[] = [
   { label: 'History', icon: 'clock' },
   { label: 'Watch Later', icon: 'timer' },
-  { label: 'Notes', icon: 'note' },
+  { label: 'Notes', icon: 'note', href: '/notes', activeKey: 'notes' },
   { label: 'Trash', icon: 'trash' },
   { label: 'Settings', icon: 'settings' },
   { label: 'Templates', icon: 'template' },
@@ -155,20 +162,37 @@ export default function AppShell({ children, active = 'library', sidebarFooter }
           <div className="my-5 h-px bg-muted" />
 
           <nav className="space-y-1">
-            {laterItems.map((item, index) => (
-              <button
-                key={item.label}
-                type="button"
-                disabled
-                title="To be implemented later"
-                className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-muted ${
-                  index >= 4 ? 'mt-1' : ''
-                }`}
-              >
-                <Icon name={item.icon} />
-                {item.label}
-              </button>
-            ))}
+            {laterItems.map((item, index) => {
+              const className = `flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                index >= 4 ? 'mt-1 ' : ''
+              }${
+                item.activeKey && active === item.activeKey
+                  ? 'bg-muted text-main shadow-[inset_3px_0_0_#e11d24]'
+                  : 'text-muted hover:bg-muted hover:text-main'
+              }`
+
+              if (item.href) {
+                return (
+                  <Link key={item.label} to={item.href} className={className}>
+                    <Icon name={item.icon} />
+                    {item.label}
+                  </Link>
+                )
+              }
+
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  disabled
+                  title="To be implemented later"
+                  className={className}
+                >
+                  <Icon name={item.icon} />
+                  {item.label}
+                </button>
+              )
+            })}
           </nav>
 
           <div className="mt-auto space-y-3">

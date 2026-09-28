@@ -149,6 +149,40 @@ class NoteSerializer(serializers.ModelSerializer):
         extra_kwargs = {"content": {"required": True, "allow_blank": True}}
 
 
+class NoteListSerializer(NoteSerializer):
+    video_title = serializers.SerializerMethodField()
+    video_channel_title = serializers.SerializerMethodField()
+    video_thumbnail_url = serializers.SerializerMethodField()
+    video_is_removed = serializers.SerializerMethodField()
+
+    class Meta(NoteSerializer.Meta):
+        fields = NoteSerializer.Meta.fields + (
+            "video_title",
+            "video_channel_title",
+            "video_thumbnail_url",
+            "video_is_removed",
+        )
+
+    def _video(self, note):
+        return self.context.get("videos_by_id", {}).get(note.youtube_video_id)
+
+    def get_video_title(self, note):
+        video = self._video(note)
+        return video.title if video else None
+
+    def get_video_channel_title(self, note):
+        video = self._video(note)
+        return video.channel_title if video else None
+
+    def get_video_thumbnail_url(self, note):
+        video = self._video(note)
+        return video.thumbnail_url if video else None
+
+    def get_video_is_removed(self, note):
+        video = self._video(note)
+        return video.is_removed if video else False
+
+
 class UserAISettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserAISettings
