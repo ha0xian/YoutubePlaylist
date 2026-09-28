@@ -4,9 +4,11 @@ export interface Video {
   position: number
   title: string
   channelTitle: string
+  description: string
   duration: string
   thumbnailUrl: string
   publishedAt: string | null
+  addedAt: string | null
   viewCount: number
   isRemoved: boolean
 }

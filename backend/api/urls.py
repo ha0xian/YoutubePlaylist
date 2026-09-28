@@ -10,6 +10,7 @@ urlpatterns = [
     path("auth/me/", views.current_user, name="auth-me"),
     path("playlists/", views.playlist_list, name="playlist-list"),
     path("playlists/<int:pk>/", views.playlist_detail, name="playlist-detail"),
+    path("videos/<str:video_id>/", views.video_detail, name="video-detail"),
     path("playlists/import/", views.playlist_import, name="playlist-import"),
     path("playlists/<int:pk>/refresh/", views.playlist_refresh, name="playlist-refresh"),
     path("playlists/<int:pk>/unlink/", views.playlist_unlink, name="playlist-unlink"),

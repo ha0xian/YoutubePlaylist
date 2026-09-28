@@ -23,6 +23,7 @@ from .serializers import (
     PlaylistUrlImportSerializer,
     RegisterSerializer,
     UserSerializer,
+    VideoSerializer,
 )
 from .youtube import (
     PlaylistImportError,
@@ -136,6 +137,23 @@ def playlist_detail(request, pk):
             status=status.HTTP_404_NOT_FOUND,
         )
     return Response(PlaylistDetailSerializer(playlist).data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def video_detail(request, video_id):
+    """Get metadata for a video in one of the current user's linked playlists."""
+    video = Video.objects.filter(
+        youtube_video_id=video_id,
+        playlist__user=request.user,
+        playlist__is_unlinked=False,
+    ).order_by("playlist_id", "position").first()
+    if video is None:
+        return Response(
+            {"detail": "Video not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return Response(VideoSerializer(video).data)
 
 
 @api_view(["POST"])

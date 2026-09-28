@@ -576,6 +576,25 @@ button:disabled {
 .queue-row img { width: 112px; height: 63px; }
 .queue-row h3 { font-size: 12px; }
 .queue-row p { font-size: 11px; }
+.queue-controls { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(110px, .65fr); }
+.queue-direction { grid-column: 1 / -1; white-space: nowrap; }
+.video-panel { background: var(--surface); }
+.video-details { color: var(--text); }
+.video-details > summary { display: flex; cursor: pointer; list-style: none; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; }
+.video-details > summary::-webkit-details-marker { display: none; }
+.video-details > summary strong, .video-details > summary small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.video-details > summary strong { font-size: 14px; }
+.video-details > summary small { margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+.video-details-toggle { flex: none; color: var(--accent); font-size: 12px; font-weight: 650; }
+.video-details-toggle::after { content: ' +'; }
+.video-details[open] .video-details-toggle::after { content: ' −'; }
+.video-details-content { display: grid; gap: 18px; border-top: 1px solid var(--border); padding: 16px; }
+.video-details-content h3 { margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.video-details-content p { max-height: 240px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.video-chapters { display: flex; flex-wrap: wrap; gap: 8px; }
+.video-chapters button { max-width: 100%; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-muted); padding: 6px 10px; color: var(--text); font-size: 12px; text-align: left; }
+.video-chapters button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.video-chapters button span { margin-right: 6px; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace; }
 .notes-document { min-width: 0; }
 .markdown-preview { overflow-wrap: anywhere; }
 .markdown-preview pre { max-width: 100%; }
@@ -613,6 +632,7 @@ button:disabled {
   .notes-document .markdown-preview, .ai-panel, .ai-result { height: auto; max-height: none; overflow: visible; }
   .study-page header > div { min-width: 0; }
   .study-page header .user-menu { flex-wrap: wrap; }
+  .queue-controls { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition-duration: 0s !important; } }
 

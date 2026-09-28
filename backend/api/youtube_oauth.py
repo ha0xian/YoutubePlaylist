@@ -665,6 +665,7 @@ def _playlist_video_payloads(
     video_ids: list[str] = []
     for item in items_data:
         item_snippet = item.get("snippet", {})
+        item_content = item.get("contentDetails", {})
         resource_id = item_snippet.get("resourceId", {})
         video_id = resource_id.get("videoId")
         if not video_id:
@@ -676,7 +677,8 @@ def _playlist_video_payloads(
             "title": item_snippet.get("title", ""),
             "channel_title": item_snippet.get("channelTitle", ""),
             "thumbnail_url": _thumbnail_url(item_snippet, preferred="default"),
-            "published_at": item_snippet.get("publishedAt"),
+            "added_at": item_snippet.get("publishedAt"),
+            "video_published_at": item_content.get("videoPublishedAt"),
         }
         video_ids.append(video_id)
 
@@ -859,6 +861,7 @@ def import_oauth_playlists_for_user(
         video_ids: list[str] = []
         for item in items_data:
             item_snippet = item.get("snippet", {})
+            item_content = item.get("contentDetails", {})
             resource_id = item_snippet.get("resourceId", {})
             video_id = resource_id.get("videoId")
             if not video_id:
@@ -874,7 +877,8 @@ def import_oauth_playlists_for_user(
                     .get("default", {})
                     .get("url", "")
                 ),
-                "published_at": item_snippet.get("publishedAt"),
+                "added_at": item_snippet.get("publishedAt"),
+                "video_published_at": item_content.get("videoPublishedAt"),
             }
             video_ids.append(video_id)
 
@@ -1015,6 +1019,7 @@ def _create_videos(
             title=detail_snippet.get("title") or item["title"],
             channel_title=detail_snippet.get("channelTitle")
             or item["channel_title"],
+            description=detail_snippet.get("description", ""),
             duration=duration,
             thumbnail_url=(
                 detail_snippet.get("thumbnails", {})
@@ -1024,7 +1029,8 @@ def _create_videos(
             or item["thumbnail_url"],
             published_at=_iso_to_datetime(
                 detail_snippet.get("publishedAt")
-                or item.get("published_at")
+                or item.get("video_published_at")
             ),
+            added_at=_iso_to_datetime(item.get("added_at")),
             view_count=int(detail_stats.get("viewCount", 0)),
         )

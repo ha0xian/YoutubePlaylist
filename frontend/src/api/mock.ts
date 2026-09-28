@@ -5,8 +5,10 @@ import type { AISettings } from './ai'
 const timestamp = '2026-01-01T12:00:00Z'
 const video = (id: number, youtubeVideoId: string, title: string): Video => ({
   id, youtubeVideoId, title, position: id, channelTitle: 'Study collection',
+  description: '0:00 Introduction\n1:20 Core idea\n8:45 Recap\n\nA concise lesson with examples and practical next steps.',
   duration: '12:30', thumbnailUrl: `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`,
-  publishedAt: timestamp, viewCount: 12500, isRemoved: false,
+  publishedAt: timestamp, addedAt: new Date(Date.parse(timestamp) + id * 86_400_000).toISOString(),
+  viewCount: 12500, isRemoved: false,
 })
 const samples = [
   video(1, 'W6NZfCO5SIk', 'JavaScript fundamentals'),
@@ -90,6 +92,15 @@ export async function mockFetch(url: string, options: RequestInit = {}): Promise
     const saved = { ...current, id: current.id ?? notes.size + 1, content: body.content, createdAt: current.createdAt ?? now, updatedAt: now }
     notes.set(videoId, saved)
     return json(saved)
+  }
+  const videoMatch = path.match(/^\/api\/videos\/([^/]+)\/$/)
+  if (videoMatch && method === 'GET') {
+    const videoId = decodeURIComponent(videoMatch[1])
+    const found = playlists
+      .filter((item) => !item.isUnlinked)
+      .flatMap((item) => item.videos)
+      .find((item) => item.youtubeVideoId === videoId)
+    return found ? json(found) : error('Video not found.', 404)
   }
   if (path === '/api/ai/settings/') {
     if (method === 'GET') return json(settings)

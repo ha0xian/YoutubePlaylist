@@ -3,6 +3,7 @@ import type {
   Playlist,
   PlaylistDetail,
   PlaylistUnlinkResponse,
+  Video,
 } from '../types/playlist'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -67,6 +68,14 @@ export function getPlaylist(
   })
     .then(parseJson)
     .then((data) => normalizeKeys<PlaylistDetail>(data))
+}
+
+export function getVideo(token: string, videoId: string): Promise<Video> {
+  return apiFetch(`${API_BASE_URL}/api/videos/${encodeURIComponent(videoId)}/`, {
+    headers: authHeaders(token),
+  })
+    .then(parseJson)
+    .then((data) => normalizeKeys<Video>(data))
 }
 
 export function refreshPlaylist(

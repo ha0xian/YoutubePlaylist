@@ -65,6 +65,7 @@ def _video_details(video_ids):
             "snippet": {
                 "title": f"Video {vid}",
                 "channelTitle": "Test Channel",
+                "description": "0:00 Introduction\n1:30 Main lesson",
                 "publishedAt": "2026-01-10T10:00:00Z",
                 "thumbnails": {
                     "default": {"url": f"https://i.ytimg.com/vi/{vid}/default.jpg"}
@@ -411,6 +412,7 @@ class PlaylistImportSuccessTests(APITestCase):
         self.assertEqual(len(data["videos"]), 2)
         self.assertEqual(data["videos"][0]["youtube_video_id"], "vid00000001")
         self.assertEqual(data["videos"][0]["position"], 0)
+        self.assertIsNotNone(data["videos"][0]["added_at"])
 
         # Database verification
         from .models import Playlist, Video
@@ -811,6 +813,57 @@ class PlaylistDetailTests(APITestCase):
         removed = next(v for v in response.data["videos"] if v["youtube_video_id"] == "vid-removed")
         self.assertFalse(active["is_removed"])
         self.assertTrue(removed["is_removed"])
+
+    def test_detail_includes_video_description(self):
+        Video.objects.create(
+            playlist=self.p_a,
+            youtube_video_id="vid-description",
+            position=0,
+            title="Described Video",
+            channel_title="ChanA",
+            description="0:00 Intro\n1:15 Topic",
+            duration="3:00",
+        )
+
+        response = self.client.get(
+            f"/api/playlists/{self.p_a.id}/",
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["videos"][0]["description"], "0:00 Intro\n1:15 Topic")
+
+    def test_video_detail_is_scoped_to_linked_playlists_owned_by_user(self):
+        own_video = Video.objects.create(
+            playlist=self.p_a,
+            youtube_video_id="vid-own-detail",
+            position=0,
+            title="Own Video",
+            channel_title="ChanA",
+            description="Video details",
+            duration="3:00",
+        )
+        other_video = Video.objects.create(
+            playlist=self.p_b,
+            youtube_video_id="vid-other-detail",
+            position=0,
+            title="Other Video",
+            channel_title="ChanB",
+            duration="3:00",
+        )
+
+        own_response = self.client.get(
+            f"/api/videos/{own_video.youtube_video_id}/",
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+        other_response = self.client.get(
+            f"/api/videos/{other_video.youtube_video_id}/",
+            HTTP_AUTHORIZATION=f"Token {self.token_a.key}",
+        )
+
+        self.assertEqual(own_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(own_response.data["description"], "Video details")
+        self.assertEqual(other_response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_detail_requires_auth(self):
         response = self.client.get(f"/api/playlists/{self.p_a.id}/")

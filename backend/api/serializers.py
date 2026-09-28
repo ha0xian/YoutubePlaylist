@@ -94,9 +94,11 @@ class VideoSerializer(serializers.ModelSerializer):
             "position",
             "title",
             "channel_title",
+            "description",
             "duration",
             "thumbnail_url",
             "published_at",
+            "added_at",
             "view_count",
             "is_removed",
         )

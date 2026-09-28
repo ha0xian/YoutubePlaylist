@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Max
+from django.utils import timezone
 
 from .models import Playlist, Video
 
@@ -327,6 +328,7 @@ def import_personal_video_for_user(
                 position=position,
                 title=snippet.get("title", ""),
                 channel_title=snippet.get("channelTitle", ""),
+                description=snippet.get("description", ""),
                 duration=duration,
                 thumbnail_url=(
                     snippet.get("thumbnails", {})
@@ -334,6 +336,7 @@ def import_personal_video_for_user(
                     .get("url", "")
                 ),
                 published_at=_iso_to_datetime(snippet.get("publishedAt")),
+                added_at=timezone.now(),
                 view_count=int(stats.get("viewCount", 0)),
                 is_removed=False,
             )
@@ -342,6 +345,9 @@ def import_personal_video_for_user(
             existing_video.title = snippet.get("title") or existing_video.title
             existing_video.channel_title = (
                 snippet.get("channelTitle") or existing_video.channel_title
+            )
+            existing_video.description = snippet.get(
+                "description", existing_video.description
             )
             existing_video.duration = duration
             existing_video.thumbnail_url = (
@@ -402,12 +408,22 @@ def reconcile_playlist_videos(
         duration = _parse_iso_duration(
             detail_content.get("duration", "PT0S")
         )
+        existing_video = playlist.videos.filter(
+            youtube_video_id=vid
+        ).only("description", "added_at").first()
+        description = detail_snippet.get("description")
+        if description is None:
+            description = existing_video.description if existing_video else ""
+        added_at = _iso_to_datetime(item.get("added_at"))
+        if added_at is None and existing_video is not None:
+            added_at = existing_video.added_at
 
         defaults = {
             "position": position,
             "title": detail_snippet.get("title") or item["title"],
             "channel_title": detail_snippet.get("channelTitle")
             or item["channel_title"],
+            "description": description,
             "duration": duration,
             "thumbnail_url": (
                 detail_snippet.get("thumbnails", {})
@@ -417,8 +433,9 @@ def reconcile_playlist_videos(
             or item["thumbnail_url"],
             "published_at": _iso_to_datetime(
                 detail_snippet.get("publishedAt")
-                or item.get("published_at")
+                or item.get("video_published_at")
             ),
+            "added_at": added_at,
             "view_count": int(detail_stats.get("viewCount", 0)),
             "is_removed": False,
         }
@@ -462,6 +479,7 @@ def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
     video_ids = []
     for item in items_data:
         item_snippet = item.get("snippet", {})
+        item_content = item.get("contentDetails", {})
         resource_id = item_snippet.get("resourceId", {})
         video_id = resource_id.get("videoId")
         if not video_id:
@@ -477,7 +495,8 @@ def import_playlist_for_user(user: User, url: str) -> Tuple[Playlist, bool]:
                 .get("default", {})
                 .get("url", "")
             ),
-            "published_at": item_snippet.get("publishedAt"),
+            "added_at": item_snippet.get("publishedAt"),
+            "video_published_at": item_content.get("videoPublishedAt"),
         }
         video_ids.append(video_id)
 

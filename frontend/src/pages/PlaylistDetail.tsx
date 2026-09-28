@@ -1,6 +1,6 @@
 import ResizableStudyWorkspace from '../components/ResizableStudyWorkspace'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { getPlaylist, refreshPlaylist, unlinkPlaylist } from '../api/playlists'
 import { useAuth } from '../auth/useAuth'
 import type { PlaylistDetail as PlaylistDetailType } from '../types/playlist'
@@ -9,6 +9,8 @@ import YouTubePlayer from '../components/YouTubePlayer'
 import type { YouTubePlayerHandle } from '../components/YouTubePlayer'
 import MarkdownNotes from '../components/MarkdownNotes'
 import UserMenu from '../components/UserMenu'
+import VideoDetails from '../components/VideoDetails'
+import { filterAndSortVideos, type QueueDirection, type QueueSort } from '../lib/videoQueue'
 
 export default function PlaylistDetail() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +24,9 @@ export default function PlaylistDetail() {
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isUnlinking, setIsUnlinking] = useState(false)
+  const [queueQuery, setQueueQuery] = useState('')
+  const [queueSort, setQueueSort] = useState<QueueSort>('playlist')
+  const [queueDirection, setQueueDirection] = useState<QueueDirection>('asc')
   const fetchVersionRef = useRef(0)
   const playerRef = useRef<YouTubePlayerHandle | null>(null)
 
@@ -88,6 +93,11 @@ export default function PlaylistDetail() {
 
   const effectiveVideo =
     playlist?.videos.find((v) => v.youtubeVideoId === effectiveVideoId) ?? null
+  const deferredQueueQuery = useDeferredValue(queueQuery)
+  const visibleVideos = useMemo(
+    () => filterAndSortVideos(playlist?.videos ?? [], deferredQueueQuery, queueSort, queueDirection),
+    [playlist?.videos, deferredQueueQuery, queueSort, queueDirection],
+  )
 
   if (isLoading) {
     return (
@@ -188,19 +198,26 @@ export default function PlaylistDetail() {
         <ResizableStudyWorkspace
           storageKey="yt-study:playlist-pane-ratio"
           video={(
-            <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-black ">
+            <section className="video-panel flex min-h-0 flex-col overflow-hidden rounded-lg border border-line">
             {effectiveVideo?.isRemoved && (
               <div className="border-b border-accent bg-accent-soft px-4 py-2 text-center text-xs text-danger">
                 This video is unavailable or has been removed.
               </div>
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 bg-black">
               <YouTubePlayer
                 key={effectiveVideoId ?? 'no-video'}
                 ref={playerRef}
                 initialVideoId={effectiveVideoId ?? undefined}
               />
             </div>
+            {effectiveVideo ? (
+              <VideoDetails
+                key={effectiveVideo.youtubeVideoId}
+                video={effectiveVideo}
+                onSeekToTime={(seconds) => playerRef.current?.seekTo(seconds)}
+              />
+            ) : null}
           </section>
           )}
           queue={(
@@ -208,14 +225,52 @@ export default function PlaylistDetail() {
               <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
                 <div>
                   <h2 className="text-sm font-semibold text-main">Queue</h2>
-                  <p className="text-xs text-muted">{playlist.videos.length} videos</p>
+                  <p className="text-xs text-muted">
+                    {visibleVideos.length === playlist.videos.length
+                      ? `${playlist.videos.length} videos`
+                      : `${visibleVideos.length} of ${playlist.videos.length} videos`}
+                  </p>
                 </div>
                 <button type="button" disabled title="To be implemented later" className="btn-ghost rounded-lg px-2 py-1 text-xs">
                   Remove watched
                 </button>
               </div>
+              <div className="queue-controls border-b border-line p-3">
+                <label>
+                  <span className="sr-only">Search queue</span>
+                  <input
+                    type="search"
+                    value={queueQuery}
+                    onChange={(event) => setQueueQuery(event.target.value)}
+                    placeholder="Search title or channel..."
+                    className="control w-full rounded-lg px-3 py-2 text-sm"
+                  />
+                </label>
+                <label>
+                  <span className="sr-only">Sort queue</span>
+                  <select
+                    value={queueSort}
+                    onChange={(event) => setQueueSort(event.target.value as QueueSort)}
+                    className="control w-full rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="playlist">Playlist order</option>
+                    <option value="recentlyAdded">Recently added</option>
+                    <option value="title">Title</option>
+                    <option value="views">View count</option>
+                    <option value="published">Published date</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="btn-secondary queue-direction rounded-lg px-3 py-2 text-sm"
+                  aria-label={`Sort direction: ${queueDirection === 'asc' ? 'ascending' : 'descending'}. Change to ${queueDirection === 'asc' ? 'descending' : 'ascending'}.`}
+                  onClick={() => setQueueDirection((direction) => direction === 'asc' ? 'desc' : 'asc')}
+                >
+                  {queueDirection === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
+                </button>
+              </div>
               <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
-                {playlist.videos.map((video) => (
+                {visibleVideos.map((video) => (
                   <VideoListItem
                     key={video.id}
                     video={video}
@@ -224,6 +279,9 @@ export default function PlaylistDetail() {
                     onSelect={(v) => setSelectedVideoId(v.youtubeVideoId)}
                   />
                 ))}
+                {visibleVideos.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-muted">No videos match your search.</p>
+                ) : null}
               </div>
             </section>
           )}
